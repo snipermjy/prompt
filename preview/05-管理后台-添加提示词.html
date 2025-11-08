@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>添加提示词 - 管理后台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --bg-gray: #FAFAFA;
+        }
+        
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background-color: var(--bg-gray);
+        }
+
+        .sidebar-item {
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-item:hover {
+            background: rgba(59, 130, 246, 0.1);
+            border-left-color: #3B82F6;
+        }
+
+        .sidebar-item.active {
+            background: linear-gradient(90deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%);
+            border-left-color: #3B82F6;
+            color: #3B82F6;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        textarea:focus, input:focus, select:focus {
+            outline: none;
+            border-color: #3B82F6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .ai-field {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+            border-left: 3px solid #8B5CF6;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+        }
+
+        .generating {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 1000px 100%;
+            animation: shimmer 2s infinite;
+        }
+
+        .tag-input {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            min-height: 100px;
+            cursor: text;
+        }
+
+        .tag-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.375rem 0.75rem;
+            background: #EFF6FF;
+            color: #1E40AF;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .tag-item:hover {
+            background: #DBEAFE;
+        }
+
+        .tag-item button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: rgba(30, 64, 175, 0.2);
+            color: #1E40AF;
+            font-size: 12px;
+            line-height: 1;
+            transition: all 0.2s;
+        }
+
+        .tag-item button:hover {
+            background: rgba(30, 64, 175, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="flex h-screen">
+        <!-- 侧边栏 -->
+        <aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-bold text-gray-900">管理后台</h1>
+                        <p class="text-xs text-gray-500">Admin Panel</p>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
+                <a href="04-管理后台-首页.html" class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-lg border-l-4 border-transparent">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                    </svg>
+                    <span class="text-sm">概览</span>
+                </a>
+
+                <a href="#" class="sidebar-item active flex items-center gap-3 px-4 py-3 rounded-lg border-l-4 border-transparent">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    <span class="text-sm">提示词管理</span>
+                </a>
+
+                <a href="#" class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-lg border-l-4 border-transparent">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span class="text-sm">待审核</span>
+                    <span class="ml-auto bg-orange-100 text-orange-700 text-xs font-semibold px-2 py-0.5 rounded-full">5</span>
+                </a>
+
+                <a href="#" class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-lg border-l-4 border-transparent">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                    </svg>
+                    <span class="text-sm">分类管理</span>
+                </a>
+
+                <a href="#" class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-lg border-l-4 border-transparent">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    <span class="text-sm">配置管理</span>
+                </a>
+            </nav>
+
+            <div class="p-4 border-t border-gray-200">
+                <a href="01-首页.html" target="_blank" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-blue-600 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                    </svg>
+                    访问前台
+                </a>
+            </div>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="flex-1 overflow-y-auto">
+            <!-- 顶部栏 -->
+            <header class="bg-white border-b border-gray-200 px-6 py-3 sticky top-0 z-10">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <a href="04-管理后台-首页.html" class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                            <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                            </svg>
+                        </a>
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-900">添加提示词</h2>
+                            <p class="text-xs text-gray-500 mt-0.5">输入提示词内容，AI将自动生成相关信息</p>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- 面包屑导航 -->
+            <div class="px-6 pt-4">
+                <nav class="flex items-center gap-2 text-sm">
+                    <a href="04-管理后台-首页.html" class="text-gray-500 hover:text-blue-600 transition-colors">管理后台</a>
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                    <a href="#" class="text-gray-500 hover:text-blue-600 transition-colors">提示词管理</a>
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                    <span class="text-gray-900 font-medium">添加提示词</span>
+                </nav>
+            </div>
+
+            <!-- 表单内容 -->
+            <div class="p-6 pt-3 max-w-5xl">
+                <form id="promptForm">
+                    <!-- 提示词内容 -->
+                    <div class="bg-white rounded-lg border border-gray-200 p-5 mb-4">
+                        <label class="block text-sm font-semibold text-gray-900 mb-2">
+                            提示词内容 <span class="text-red-500">*</span>
+                        </label>
+                        <textarea 
+                            id="promptContent"
+                            rows="8"
+                            placeholder="在这里输入或粘贴提示词内容..."
+                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg resize-none font-mono text-sm"
+                            required
+                        ></textarea>
+                        <div class="flex items-center justify-between mt-2">
+                            <p class="text-xs text-gray-500">
+                                💡 粘贴内容后，点击"AI生成"按钮自动填充下方字段
+                            </p>
+                            <button 
+                                type="button"
+                                id="generateBtn"
+                                class="btn-primary px-5 py-2 text-white rounded-lg text-sm font-medium flex items-center gap-2"
+                            >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                </svg>
+                                AI生成
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- AI生成区域提示 -->
+                    <div class="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-100 rounded-lg p-3 mb-4">
+                        <div class="flex items-start gap-2.5">
+                            <div class="p-1.5 bg-purple-100 rounded-lg">
+                                <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                                </svg>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="text-xs font-semibold text-purple-900 mb-0.5">AI自动生成的字段</h3>
+                                <p class="text-xs text-purple-700">
+                                    下方带有 🤖 标记的字段将由AI自动填充，您可以在生成后手动调整
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <!-- 标题 (AI生成) -->
+                        <div class="bg-white rounded-lg border border-gray-200 p-4 ai-field">
+                            <label class="block text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                                <span>🤖 标题</span>
+                                <span class="text-xs font-normal text-gray-500">(AI生成)</span>
+                            </label>
+                            <input 
+                                type="text"
+                                id="title"
+                                placeholder="AI将自动生成标题..."
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            >
+                        </div>
+
+                        <!-- 难度 (AI生成) -->
+                        <div class="bg-white rounded-lg border border-gray-200 p-4 ai-field">
+                            <label class="block text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                                <span>🤖 难度等级</span>
+                                <span class="text-xs font-normal text-gray-500">(AI生成)</span>
+                            </label>
+                            <select id="difficulty" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                <option value="">AI将自动选择...</option>
+                                <option value="beginner">初级</option>
+                                <option value="intermediate">中级</option>
+                                <option value="advanced">高级</option>
+                            </select>
+                        </div>
+
+                        <!-- 主分类 (AI生成) -->
+                        <div class="bg-white rounded-lg border border-gray-200 p-4 ai-field">
+                            <label class="block text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                                <span>🤖 主分类</span>
+                                <span class="text-xs font-normal text-gray-500">(AI生成)</span>
+                            </label>
+                            <input 
+                                type="text"
+                                id="mainCategory"
+                                placeholder="AI将自动生成分类..."
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            >
+                        </div>
+
+                        <!-- 子分类 (AI生成) -->
+                        <div class="bg-white rounded-lg border border-gray-200 p-4 ai-field">
+                            <label class="block text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                                <span>🤖 子分类</span>
+                                <span class="text-xs font-normal text-gray-500">(可选，AI生成)</span>
+                            </label>
+                            <input 
+                                type="text"
+                                id="subCategory"
+                                placeholder="AI将自动生成子分类..."
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            >
+                        </div>
+
+                        <!-- 语言 (AI生成) -->
+                        <div class="bg-white rounded-lg border border-gray-200 p-4 ai-field">
+                            <label class="block text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                                <span>🤖 语言</span>
+                                <span class="text-xs font-normal text-gray-500">(AI生成)</span>
+                            </label>
+                            <select id="language" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                <option value="">AI将自动选择...</option>
+                                <option value="zh">中文</option>
+                                <option value="en">英文</option>
+                                <option value="bilingual">双语</option>
+                            </select>
+                        </div>
+
+                        <!-- 提示词类型 (AI生成) -->
+                        <div class="bg-white rounded-lg border border-gray-200 p-4 ai-field">
+                            <label class="block text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                                <span>🤖 提示词类型</span>
+                                <span class="text-xs font-normal text-gray-500">(AI生成)</span>
+                            </label>
+                            <input 
+                                type="text"
+                                id="promptType"
+                                placeholder="AI将自动生成类型..."
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            >
+                        </div>
+                    </div>
+
+                    <!-- 描述 (AI生成) -->
+                    <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4 ai-field">
+                        <label class="block text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                            <span>🤖 简短描述</span>
+                            <span class="text-xs font-normal text-gray-500">(AI生成，50-100字)</span>
+                        </label>
+                        <textarea 
+                            id="description"
+                            rows="2"
+                            placeholder="AI将自动生成描述..."
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg resize-none text-sm"
+                        ></textarea>
+                    </div>
+
+                    <!-- 标签 (AI生成) -->
+                    <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4 ai-field">
+                        <label class="block text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                            <span>🤖 标签</span>
+                            <span class="text-xs font-normal text-gray-500">(AI生成3-5个)</span>
+                        </label>
+                        <div id="tagsContainer" class="tag-input" onclick="document.getElementById('tagInput').focus()">
+                            <input 
+                                type="text" 
+                                id="tagInput"
+                                placeholder="AI将自动生成标签，您也可以手动添加..."
+                                class="flex-1 min-w-[200px] outline-none border-none text-sm"
+                                onkeydown="handleTagInput(event)"
+                            >
+                        </div>
+                    </div>
+
+                    <!-- 使用场景 (AI生成) -->
+                    <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4 ai-field">
+                        <label class="block text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                            <span>🤖 使用场景</span>
+                            <span class="text-xs font-normal text-gray-500">(AI生成)</span>
+                        </label>
+                        <div id="useCasesContainer" class="space-y-2">
+                            <!-- 使用场景将动态添加 -->
+                        </div>
+                        <button 
+                            type="button"
+                            onclick="addUseCase()"
+                            class="mt-2 text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                        >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                            </svg>
+                            添加场景
+                        </button>
+                    </div>
+
+                    <!-- 适用AI模型 (AI生成) -->
+                    <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4 ai-field">
+                        <label class="block text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                            <span>🤖 适用AI模型</span>
+                            <span class="text-xs font-normal text-gray-500">(AI生成)</span>
+                        </label>
+                        <div id="aiModelsContainer" class="tag-input" onclick="document.getElementById('aiModelInput').focus()">
+                            <input 
+                                type="text" 
+                                id="aiModelInput"
+                                placeholder="AI将自动生成，您也可以手动添加..."
+                                class="flex-1 min-w-[200px] outline-none border-none text-sm"
+                                onkeydown="handleAIModelInput(event)"
+                            >
+                        </div>
+                        <div class="mt-2 flex flex-wrap gap-1.5">
+                            <span class="text-xs text-gray-500">快速选择：</span>
+                            <button type="button" onclick="addAIModel('ChatGPT')" class="px-2 py-0.5 bg-gray-100 hover:bg-blue-100 text-gray-700 hover:text-blue-700 text-xs rounded transition-colors">ChatGPT</button>
+                            <button type="button" onclick="addAIModel('Claude')" class="px-2 py-0.5 bg-gray-100 hover:bg-blue-100 text-gray-700 hover:text-blue-700 text-xs rounded transition-colors">Claude</button>
+                            <button type="button" onclick="addAIModel('Gemini')" class="px-2 py-0.5 bg-gray-100 hover:bg-blue-100 text-gray-700 hover:text-blue-700 text-xs rounded transition-colors">Gemini</button>
+                            <button type="button" onclick="addAIModel('文心一言')" class="px-2 py-0.5 bg-gray-100 hover:bg-blue-100 text-gray-700 hover:text-blue-700 text-xs rounded transition-colors">文心一言</button>
+                            <button type="button" onclick="addAIModel('通义千问')" class="px-2 py-0.5 bg-gray-100 hover:bg-blue-100 text-gray-700 hover:text-blue-700 text-xs rounded transition-colors">通义千问</button>
+                            <button type="button" onclick="addAIModel('Midjourney')" class="px-2 py-0.5 bg-gray-100 hover:bg-blue-100 text-gray-700 hover:text-blue-700 text-xs rounded transition-colors">Midjourney</button>
+                        </div>
+                    </div>
+
+                    <!-- 状态选择 -->
+                    <div class="bg-white rounded-lg border border-gray-200 p-4 mb-5">
+                        <label class="block text-sm font-semibold text-gray-900 mb-2">
+                            发布状态
+                        </label>
+                        <div class="flex gap-4">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="status" value="published" class="text-blue-600" checked>
+                                <span class="text-xs">立即发布</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="status" value="draft" class="text-blue-600">
+                                <span class="text-xs">保存为草稿</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 提交按钮 -->
+                    <div class="flex items-center gap-3">
+                        <button 
+                            type="submit"
+                            class="btn-primary flex-1 px-6 py-2.5 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2"
+                        >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            保存提示词
+                        </button>
+                        <a 
+                            href="04-管理后台-首页.html"
+                            class="px-6 py-2.5 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                            取消
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let tags = [];
+        let aiModels = [];
+
+        // AI生成模拟
+        document.getElementById('generateBtn').addEventListener('click', async function() {
+            const content = document.getElementById('promptContent').value;
+            if (!content.trim()) {
+                alert('请先输入提示词内容');
+                return;
+            }
+
+            const btn = this;
+            btn.disabled = true;
+            btn.innerHTML = `
+                <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                AI生成中...
+            `;
+
+            // 模拟AI生成延迟
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            // 填充AI生成的数据
+            document.getElementById('title').value = '小红书爆款文案生成器';
+            document.getElementById('difficulty').value = 'beginner';
+            document.getElementById('mainCategory').value = '营销文案';
+            document.getElementById('subCategory').value = '社交媒体';
+            document.getElementById('language').value = 'zh';
+            document.getElementById('promptType').value = '写作辅助';
+            document.getElementById('description').value = '专为小红书平台设计的文案生成提示词，帮助你快速创作吸引流量的优质内容，提升曝光率和互动率。';
+
+            // 添加标签
+            tags = ['小红书', '文案', '营销', '社交媒体'];
+            renderTags();
+
+            // 添加使用场景
+            const useCases = ['电商推广', '个人IP打造', '品牌营销'];
+            useCases.forEach(useCase => addUseCase(useCase));
+
+            // 添加AI模型
+            aiModels = ['ChatGPT', 'Claude', '文心一言'];
+            renderAIModels();
+
+            // 恢复按钮
+            btn.disabled = false;
+            btn.innerHTML = `
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+                AI生成
+            `;
+
+            // 提示成功
+            alert('AI生成完成！请检查并调整生成的内容。');
+        });
+
+        // 标签处理
+        function handleTagInput(event) {
+            if (event.key === 'Enter' || event.key === ',') {
+                event.preventDefault();
+                const input = event.target;
+                const value = input.value.trim();
+                if (value && !tags.includes(value)) {
+                    tags.push(value);
+                    renderTags();
+                }
+                input.value = '';
+            }
+        }
+
+        function removeTag(tag) {
+            tags = tags.filter(t => t !== tag);
+            renderTags();
+        }
+
+        function renderTags() {
+            const container = document.getElementById('tagsContainer');
+            const input = document.getElementById('tagInput');
+            container.innerHTML = '';
+            
+            tags.forEach(tag => {
+                const tagEl = document.createElement('div');
+                tagEl.className = 'tag-item';
+                tagEl.innerHTML = `
+                    <span>${tag}</span>
+                    <button type="button" onclick="removeTag('${tag}')">×</button>
+                `;
+                container.appendChild(tagEl);
+            });
+            
+            container.appendChild(input);
+        }
+
+        // AI模型处理
+        function handleAIModelInput(event) {
+            if (event.key === 'Enter' || event.key === ',') {
+                event.preventDefault();
+                const input = event.target;
+                const value = input.value.trim();
+                if (value && !aiModels.includes(value)) {
+                    aiModels.push(value);
+                    renderAIModels();
+                }
+                input.value = '';
+            }
+        }
+
+        function addAIModel(model) {
+            if (!aiModels.includes(model)) {
+                aiModels.push(model);
+                renderAIModels();
+            }
+        }
+
+        function removeAIModel(model) {
+            aiModels = aiModels.filter(m => m !== model);
+            renderAIModels();
+        }
+
+        function renderAIModels() {
+            const container = document.getElementById('aiModelsContainer');
+            const input = document.getElementById('aiModelInput');
+            container.innerHTML = '';
+            
+            aiModels.forEach(model => {
+                const modelEl = document.createElement('div');
+                modelEl.className = 'tag-item';
+                modelEl.innerHTML = `
+                    <span>${model}</span>
+                    <button type="button" onclick="removeAIModel('${model}')">×</button>
+                `;
+                container.appendChild(modelEl);
+            });
+            
+            container.appendChild(input);
+        }
+
+        // 使用场景处理
+        let useCaseCount = 0;
+        function addUseCase(value = '') {
+            const container = document.getElementById('useCasesContainer');
+            const id = `useCase${useCaseCount++}`;
+            const div = document.createElement('div');
+            div.className = 'flex items-center gap-2';
+            div.innerHTML = `
+                                <input 
+                                    type="text" 
+                                    id="${id}"
+                                    value="${value}"
+                                    placeholder="输入使用场景..."
+                                    class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                >
+                                <button 
+                                    type="button"
+                                    onclick="this.parentElement.remove()"
+                                    class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                </button>
+            `;
+            container.appendChild(div);
+        }
+
+        // 表单提交
+        document.getElementById('promptForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('提示词保存成功！（这是预览版）');
+        });
+
+        // 初始化一个使用场景输入框
+        addUseCase();
+    </script>
+</body>
+</html>
+

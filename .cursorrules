@@ -1,0 +1,739 @@
+# AI提示词库项目开发规则
+
+## 项目概述
+
+这是一个基于 Supabase + Next.js 的AI提示词库系统，包含前端展示、用户提交、管理后台三大模块。项目采用现代化的技术栈，注重用户体验、代码质量和可维护性。
+
+## 核心开发原则
+
+### 1. 代码质量第一
+
+- **清晰优先**：代码要易读、易懂、易维护，避免过度复杂的逻辑
+- **一致性**：保持命名、结构、风格的统一性
+- **简洁性**：拒绝冗余代码，每一行代码都应有其存在的意义
+- **注释规范**：
+  - 复杂逻辑必须注释说明
+  - 函数/组件顶部说明用途、参数、返回值
+  - 关键业务逻辑添加行内注释
+  - 避免无意义的注释（如 `// 定义变量`）
+
+### 2. 问题解决流程（重要！）
+
+**遇到BUG或问题时，必须严格遵循以下步骤：**
+
+1. **全局排查**
+   - 不要急于下结论
+   - 检查所有相关文件和代码
+   - 查看项目文档、数据库设计、UI设计文档
+   - 理解问题的上下文和影响范围
+
+2. **找根本原因**
+   - 不要只解决表面问题
+   - 追溯到问题的根源
+   - 分析为什么会出现这个问题
+   - 思考是否有其他地方也会受影响
+
+3. **给出最优解**
+   - **直接实施，不要列出多个选项让用户选择**
+   - 选择最佳方案直接执行
+   - 确保解决方案不会引入新问题
+   - 一次性解决，避免反复修改
+
+4. **验证和测试**
+   - 确认修复后不会影响其他功能
+   - 检查是否有类似问题需要同步修复
+   - 保证代码的健壮性
+
+**禁止行为：**
+- ❌ 不要只改一个地方，结果别的地方出错
+- ❌ 不要修复一个BUG，引入新的BUG
+- ❌ 不要给用户提供选择题，要直接给答案
+- ❌ 不要临时方案，要彻底解决
+
+### 3. 新功能开发原则
+
+**添加任何新功能时，必须考虑全局影响：**
+
+1. **全局视角**
+   - 新功能与现有功能的关系
+   - 是否需要更新数据库结构
+   - 是否需要更新API接口
+   - 前端、后端、数据库三端联动
+
+2. **最优方案**
+   - 选择最合适的技术方案
+   - 考虑性能、可维护性、可扩展性
+   - 遵循现有的架构模式
+
+3. **形成联动**
+   - 更新所有受影响的文件
+   - 保持数据结构的一致性
+   - 确保UI/UX的统一性
+   - 同步更新相关文档（如必要）
+
+4. **提前规划**
+   - 思考功能的边界情况
+   - 考虑用户体验
+   - 预留扩展空间
+
+### 4. 细节零容忍
+
+**必须避免的低级错误：**
+
+- ❌ 字段名不匹配（数据库 vs 代码）
+- ❌ 大小写错误（camelCase vs snake_case）
+- ❌ 下划线使用不一致
+- ❌ 拼写错误
+- ❌ 类型不匹配
+- ❌ 缺少必要的空值检查
+- ❌ 硬编码配置信息
+
+**检查清单：**
+- ✅ 数据库字段名与代码中使用的是否一致
+- ✅ API参数命名是否规范
+- ✅ 变量命名是否符合约定
+- ✅ 类型定义是否完整
+- ✅ 边界条件是否处理
+- ✅ 错误处理是否完善
+
+### 5. 文档生成规则
+
+**严格遵守：**
+- **禁止主动生成文档**（除非用户明确要求）
+- 用户说"写个README"、"生成文档"、"更新文档"才能生成
+- 代码即文档，通过清晰的命名和注释表达意图
+
+**允许的情况：**
+- 用户明确说"生成XXX文档"
+- 用户说"记录XXX"或"写下XXX"
+- 项目初始化时的必要文档（如有要求）
+
+## 技术栈规范
+
+### 前端技术
+
+```
+框架: Next.js 14+ (App Router)
+样式: Tailwind CSS 3+
+UI库: shadcn/ui (可选)
+状态管理: React Hooks + Context (简单场景) / Zustand (复杂场景)
+HTTP客户端: fetch API / Axios
+表单: React Hook Form
+类型: TypeScript
+```
+
+### 后端技术
+
+```
+数据库: Supabase (PostgreSQL)
+认证: Supabase Auth
+存储: Supabase Storage
+实时: Supabase Realtime (如需要)
+API: Next.js API Routes / Server Actions
+```
+
+### 开发工具
+
+```
+包管理器: npm / pnpm
+代码格式: Prettier
+代码检查: ESLint
+Git: 语义化提交（可选）
+```
+
+## 代码规范
+
+### 命名约定
+
+```typescript
+// 组件：PascalCase
+export function PromptCard() {}
+export default function HomePage() {}
+
+// 变量/函数：camelCase
+const userPrompts = [];
+function fetchPromptList() {}
+
+// 常量：UPPER_SNAKE_CASE
+const API_BASE_URL = 'https://api.example.com';
+const MAX_RETRY_COUNT = 3;
+
+// 类型/接口：PascalCase
+interface PromptData {}
+type UserRole = 'admin' | 'user';
+
+// 文件名：
+// - 组件: PascalCase (PromptCard.tsx)
+// - 工具: camelCase (formatDate.ts)
+// - 页面: kebab-case (prompt-detail.tsx) 或 PascalCase
+// - 配置: lowercase (config.ts)
+
+// CSS类：kebab-case
+.prompt-card {}
+.user-profile {}
+
+// 数据库字段：snake_case
+prompts.created_at
+users.display_name
+```
+
+### 文件结构
+
+```
+src/
+├── app/                    # Next.js App Router 页面
+│   ├── (frontend)/        # 前端路由组
+│   ├── (admin)/          # 管理后台路由组
+│   ├── api/              # API路由
+│   └── layout.tsx        # 根布局
+├── components/            # 组件
+│   ├── ui/               # 基础UI组件
+│   ├── layout/           # 布局组件
+│   └── features/         # 业务组件
+├── lib/                  # 工具库
+│   ├── supabase/        # Supabase客户端
+│   ├── utils/           # 工具函数
+│   └── types/           # TypeScript类型
+├── hooks/               # 自定义Hooks
+├── config/              # 配置文件
+└── styles/              # 全局样式
+
+docs/                    # 项目文档
+├── UI设计文档.md
+├── 数据库设计文档.md
+└── 项目需求文档.md
+
+preview/                 # 原型预览（HTML静态页面）
+```
+
+### TypeScript规范
+
+```typescript
+// ✅ 使用接口定义数据结构
+interface Prompt {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  tags: string[];
+  target_ai: string[];
+  view_count: number;
+  created_at: string;
+  author_name?: string;
+  author_link?: string;
+}
+
+// ✅ 使用类型别名定义联合类型
+type PromptStatus = 'draft' | 'pending' | 'published' | 'rejected';
+type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced';
+
+// ✅ 函数要有明确的类型注解
+function formatPromptData(raw: any): Prompt {
+  // 实现
+}
+
+async function fetchPrompts(
+  category?: string,
+  limit: number = 20
+): Promise<Prompt[]> {
+  // 实现
+}
+
+// ✅ 使用泛型
+function createResponse<T>(data: T, success: boolean) {
+  return { data, success };
+}
+
+// ❌ 避免使用 any（除非必要）
+function badExample(data: any) {} // 不好
+
+// ✅ 使用 unknown 或具体类型
+function goodExample(data: unknown) {
+  // 需要类型检查
+}
+```
+
+### React组件规范
+
+```typescript
+// ✅ 使用函数组件 + Hooks
+export function PromptCard({ prompt }: { prompt: Prompt }) {
+  const [isLiked, setIsLiked] = useState(false);
+  
+  return (
+    <div className="prompt-card">
+      {/* 内容 */}
+    </div>
+  );
+}
+
+// ✅ Props 接口定义
+interface PromptListProps {
+  prompts: Prompt[];
+  onPromptClick: (id: string) => void;
+  className?: string;
+}
+
+export function PromptList({ 
+  prompts, 
+  onPromptClick,
+  className 
+}: PromptListProps) {
+  // 实现
+}
+
+// ✅ 自定义Hook
+function usePromptData(category?: string) {
+  const [prompts, setPrompts] = useState<Prompt[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  
+  useEffect(() => {
+    // 获取数据
+  }, [category]);
+  
+  return { prompts, loading, error };
+}
+
+// ✅ 组件注释
+/**
+ * 提示词卡片组件
+ * 
+ * @param prompt - 提示词数据
+ * @param onLike - 点赞回调
+ * @param showAuthor - 是否显示来源作者
+ */
+export function PromptCard({ ... }) {}
+```
+
+### 样式规范（Tailwind CSS）
+
+```typescript
+// ✅ 使用 Tailwind 工具类
+<div className="flex items-center gap-2 p-4 bg-white rounded-lg shadow-sm">
+
+// ✅ 响应式设计
+<div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+
+// ✅ 使用 CSS 变量统一配色
+:root {
+  --primary: #3B82F6;
+  --bg-gray: #FAFAFA;
+}
+
+// ✅ 自定义类（复杂样式）
+.prompt-card {
+  @apply bg-white rounded-lg border border-gray-200;
+  transition: all 0.3s ease;
+}
+
+.prompt-card:hover {
+  @apply shadow-lg -translate-y-1;
+}
+
+// ✅ 条件类名
+<div className={cn(
+  "base-class",
+  isActive && "active-class",
+  disabled && "disabled-class"
+)}>
+```
+
+## 数据库规范
+
+### 字段命名
+
+```sql
+-- ✅ 使用 snake_case
+CREATE TABLE prompts (
+  id uuid PRIMARY KEY,
+  created_at timestamptz,
+  user_id uuid,
+  view_count integer,
+  author_name varchar(100),
+  author_link varchar(500)
+);
+
+-- ❌ 避免 camelCase
+-- created_at ✅  createdAt ❌
+```
+
+### 查询规范
+
+```typescript
+// ✅ 使用 Supabase 客户端
+import { createClient } from '@/lib/supabase/client';
+
+const supabase = createClient();
+
+// ✅ 类型安全的查询
+const { data, error } = await supabase
+  .from('prompts')
+  .select('*')
+  .eq('status', 'published')
+  .order('created_at', { ascending: false })
+  .limit(20);
+
+// ✅ 错误处理
+if (error) {
+  console.error('Failed to fetch prompts:', error);
+  throw new Error('Failed to fetch prompts');
+}
+
+// ✅ 使用类型断言
+const prompts = data as Prompt[];
+```
+
+### 数据一致性
+
+```typescript
+// ✅ 字段名必须与数据库一致
+interface Prompt {
+  created_at: string;  // ✅ 与数据库 created_at 一致
+  view_count: number;  // ✅ 与数据库 view_count 一致
+}
+
+// ❌ 错误示例
+interface BadPrompt {
+  createdAt: string;   // ❌ 与数据库不一致
+  viewCount: number;   // ❌ 与数据库不一致
+}
+```
+
+## UI/UX规范
+
+### 设计原则
+
+```
+1. 简洁紧凑 - 减少不必要的留白和元素
+2. 一致性 - 所有页面风格统一
+3. 响应式 - 适配不同屏幕尺寸
+4. 科技感 - 使用科技蓝主题（#3B82F6）
+5. 可访问性 - 良好的对比度和可操作性
+```
+
+### 统一规范（参考 UI设计文档.md）
+
+```css
+/* 配色 */
+--primary: #3B82F6;
+--bg-gray: #FAFAFA;
+
+/* 圆角 */
+rounded-lg: 8px (统一使用)
+
+/* 字体大小 */
+标题: text-base (16px)
+正文: text-sm (14px)
+辅助: text-xs (12px)
+
+/* 间距 */
+卡片间距: gap-4 (16px)
+内边距: p-4 或 p-5 (16-20px)
+
+/* 卡片 */
+高度: 135px (首页卡片)
+边框: border border-gray-200
+阴影: hover:shadow-lg
+```
+
+### 组件复用
+
+```typescript
+// ✅ 提取可复用组件
+<Button variant="primary" size="sm" onClick={handleClick}>
+  提交
+</Button>
+
+<Card className="prompt-card">
+  <CardHeader />
+  <CardContent />
+  <CardFooter />
+</Card>
+
+// ✅ 使用统一的 Loading、Error、Empty 状态组件
+{loading && <LoadingSpinner />}
+{error && <ErrorMessage error={error} />}
+{empty && <EmptyState message="暂无数据" />}
+```
+
+## API规范
+
+### 路由设计
+
+```typescript
+// ✅ RESTful风格
+GET    /api/prompts          // 获取列表
+GET    /api/prompts/:id      // 获取详情
+POST   /api/prompts          // 创建
+PUT    /api/prompts/:id      // 更新
+DELETE /api/prompts/:id      // 删除
+
+// ✅ 使用 Server Actions（推荐）
+'use server'
+
+export async function getPrompts(category?: string) {
+  // 实现
+}
+
+export async function createPrompt(data: CreatePromptInput) {
+  // 实现
+}
+```
+
+### 响应格式
+
+```typescript
+// ✅ 统一响应格式
+interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
+}
+
+// ✅ 成功响应
+return {
+  success: true,
+  data: prompts,
+  message: '获取成功'
+};
+
+// ✅ 错误响应
+return {
+  success: false,
+  error: 'NOT_FOUND',
+  message: '提示词不存在'
+};
+```
+
+## 错误处理
+
+### 前端错误处理
+
+```typescript
+// ✅ Try-Catch包裹
+try {
+  const data = await fetchPrompts();
+  setPrompts(data);
+} catch (error) {
+  console.error('Failed to fetch prompts:', error);
+  setError(error instanceof Error ? error.message : 'Unknown error');
+  // 显示错误提示
+  toast.error('加载失败，请重试');
+}
+
+// ✅ 边界情况处理
+if (!prompt) {
+  return <div>提示词不存在</div>;
+}
+
+if (prompts.length === 0) {
+  return <EmptyState />;
+}
+```
+
+### 后端错误处理
+
+```typescript
+// ✅ 详细的错误信息
+export async function getPromptById(id: string) {
+  if (!id) {
+    throw new Error('Prompt ID is required');
+  }
+  
+  const { data, error } = await supabase
+    .from('prompts')
+    .select('*')
+    .eq('id', id)
+    .single();
+  
+  if (error) {
+    console.error('Database error:', error);
+    throw new Error(`Failed to fetch prompt: ${error.message}`);
+  }
+  
+  if (!data) {
+    throw new Error('Prompt not found');
+  }
+  
+  return data;
+}
+```
+
+## 性能优化
+
+```typescript
+// ✅ 图片优化
+import Image from 'next/image';
+
+<Image 
+  src={imageUrl} 
+  alt="prompt" 
+  width={300} 
+  height={200}
+  loading="lazy"
+/>
+
+// ✅ 代码分割
+import dynamic from 'next/dynamic';
+
+const AdminPanel = dynamic(() => import('@/components/AdminPanel'), {
+  loading: () => <LoadingSpinner />
+});
+
+// ✅ 数据缓存
+export const revalidate = 3600; // ISR缓存1小时
+
+// ✅ 分页加载
+const { data, error } = await supabase
+  .from('prompts')
+  .select('*')
+  .range(offset, offset + limit - 1);
+```
+
+## Git提交规范（可选）
+
+```bash
+# ✅ 语义化提交（推荐）
+feat: 添加提示词搜索功能
+fix: 修复详情页面包屑导航错误
+style: 调整首页卡片样式更紧凑
+refactor: 重构用户认证逻辑
+docs: 更新数据库设计文档
+chore: 更新依赖版本
+
+# 提交前检查
+- 代码是否格式化
+- 是否有 console.log 遗留
+- 是否有 TODO 注释
+- 类型是否正确
+- 测试是否通过
+```
+
+## 测试规范
+
+```typescript
+// ✅ 单元测试（关键函数）
+import { formatDate } from '@/lib/utils/formatDate';
+
+describe('formatDate', () => {
+  it('should format date correctly', () => {
+    expect(formatDate('2024-01-01')).toBe('2024年1月1日');
+  });
+});
+
+// ✅ 集成测试（API）
+describe('GET /api/prompts', () => {
+  it('should return prompts list', async () => {
+    const response = await fetch('/api/prompts');
+    expect(response.status).toBe(200);
+  });
+});
+```
+
+## 安全规范
+
+```typescript
+// ✅ 环境变量
+NEXT_PUBLIC_SUPABASE_URL=xxx    // 公开变量
+SUPABASE_SERVICE_ROLE_KEY=xxx   // 私密变量（不要暴露）
+
+// ✅ 数据验证
+import { z } from 'zod';
+
+const CreatePromptSchema = z.object({
+  title: z.string().min(1).max(100),
+  content: z.string().min(1).max(10000),
+  tags: z.array(z.string()).min(1).max(5)
+});
+
+// ✅ XSS防护
+import DOMPurify from 'isomorphic-dompurify';
+
+const cleanContent = DOMPurify.sanitize(userInput);
+
+// ✅ SQL注入防护（Supabase自动处理）
+// 使用参数化查询，不要拼接SQL
+```
+
+## 开发工作流
+
+### 开发新功能
+
+1. **理解需求** - 阅读需求文档，理解功能目标
+2. **设计方案** - 思考实现方式，考虑全局影响
+3. **数据库设计** - 确认是否需要新增/修改表结构
+4. **API设计** - 设计接口，定义类型
+5. **组件开发** - 实现UI组件
+6. **集成联调** - 前后端联调
+7. **测试验证** - 功能测试、边界测试
+8. **代码审查** - 自查代码质量
+9. **提交代码** - 提交并标注清楚
+
+### 修复BUG
+
+1. **复现问题** - 确认BUG存在
+2. **全局排查** - 查看所有相关代码
+3. **定位根因** - 找到问题根源
+4. **制定方案** - 选择最佳修复方案
+5. **实施修复** - 一次性彻底解决
+6. **回归测试** - 确保没有引入新问题
+7. **文档更新** - 如涉及接口变更需更新文档
+
+## 注意事项清单
+
+### 每次开发前检查
+
+- [ ] 是否理解了需求？
+- [ ] 是否查看了相关文档？
+- [ ] 是否考虑了全局影响？
+- [ ] 是否有更好的方案？
+
+### 每次提交前检查
+
+- [ ] 代码是否格式化？
+- [ ] 命名是否规范？
+- [ ] 类型是否正确？
+- [ ] 错误处理是否完善？
+- [ ] 是否有console.log遗留？
+- [ ] 是否测试过？
+- [ ] 是否影响其他功能？
+- [ ] 数据库字段是否一致？
+
+### 每次修复BUG前检查
+
+- [ ] 是否看了所有相关文件？
+- [ ] 是否找到了根本原因？
+- [ ] 是否会引入新问题？
+- [ ] 是否有其他地方需要同步修改？
+
+## 参考文档
+
+本项目包含以下文档，开发时请参考：
+
+1. `docs/项目需求文档.md` - 功能需求和业务逻辑
+2. `docs/数据库设计文档.md` - 数据库表结构和字段说明
+3. `docs/UI设计文档.md` - UI/UX设计规范和样式标准
+
+**重要提醒：**
+- 开发前务必先阅读相关文档
+- 遇到问题先查文档
+- 修改功能需考虑文档是否需要同步更新
+- 保持代码与文档的一致性
+
+---
+
+## 总结：记住这些原则
+
+1. ✅ **代码清晰简洁** - 可读性第一
+2. ✅ **全局思考** - 考虑影响范围
+3. ✅ **彻底解决** - 找根本原因，一次搞定
+4. ✅ **细节零容忍** - 字段、大小写、类型要精确
+5. ✅ **不要画蛇添足** - 不主动生成文档
+6. ✅ **直接给答案** - 不要让用户选择，给最优方案
+7. ✅ **保持一致性** - 命名、风格、结构统一
+8. ✅ **注重体验** - 前端UI、交互、性能都要优秀
+
+**最重要的：遇到问题，先全局分析，找根本原因，给最优解，一次性彻底解决！**
+

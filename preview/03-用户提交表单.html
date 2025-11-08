@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>提交提示词 - AI提示词库</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 自定义配色 - 科技蓝 */
+        :root {
+            --primary: #3B82F6;
+            --primary-dark: #2563EB;
+            --primary-light: #60A5FA;
+            --secondary: #8B5CF6;
+            --success: #10B981;
+            --text-primary: #1F2937;
+            --text-secondary: #6B7280;
+            --bg-gray: #FAFAFA;
+        }
+
+        /* 自定义字体 */
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg-gray);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        textarea:focus, input:focus {
+            outline: none;
+            border-color: #3B82F6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease;
+        }
+
+        .char-counter {
+            transition: color 0.2s ease;
+        }
+
+        .char-counter.warning {
+            color: #F59E0B;
+        }
+
+        .char-counter.danger {
+            color: #EF4444;
+        }
+
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <header class="bg-white shadow-sm sticky top-0 z-50 border-b border-gray-100">
+        <div class="max-w-4xl mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <!-- 返回 + Logo -->
+                <div class="flex items-center gap-4">
+                    <a href="01-首页.html" class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                        <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                        </svg>
+                    </a>
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h1 class="text-lg font-bold text-gray-900">AI提示词库</h1>
+                            <p class="text-xs text-gray-500">PromptHub</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要内容 -->
+    <main class="max-w-4xl mx-auto px-6 py-6 pb-8">
+        <!-- 面包屑导航 -->
+        <nav class="flex items-center gap-2 text-sm mb-5">
+            <a href="01-首页.html" class="text-gray-500 hover:text-blue-600 transition-colors">首页</a>
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+            </svg>
+            <span class="text-gray-900 font-medium">提交提示词</span>
+        </nav>
+
+        <!-- 标题 -->
+        <div class="flex items-center gap-3 mb-5 fade-in">
+            <div class="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-lg flex-shrink-0">
+                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900">提交优质AI提示词</h1>
+        </div>
+
+        <!-- 提交表单 -->
+        <div class="bg-white rounded-lg border border-gray-200 p-6 fade-in" style="animation-delay: 0.1s;">
+            <form id="submitForm">
+                <!-- 提示词内容 -->
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-gray-900 mb-2">
+                        提示词内容 <span class="text-red-500">*</span>
+                    </label>
+                    <textarea 
+                        id="promptContent"
+                        rows="10"
+                        placeholder="请在这里粘贴或输入您的提示词内容...&#10;&#10;例如：&#10;你是一位专业的文案撰写专家，擅长创作吸引人的营销文案。请根据我提供的产品信息，生成一段能够打动目标用户的宣传文案..."
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg resize-none transition-all font-mono text-sm"
+                        required
+                    ></textarea>
+                    <div class="flex items-center justify-between mt-2">
+                        <p class="text-xs text-gray-500">
+                            💡 提示：内容越详细，AI生成的分类和标签就越准确
+                        </p>
+                        <span id="charCounter" class="char-counter text-xs text-gray-500">0 / 10000</span>
+                    </div>
+                </div>
+
+                <!-- 提示词简介/说明（可选） -->
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-gray-900 mb-2">
+                        提示词简介/说明（选填）
+                    </label>
+                    <textarea 
+                        id="promptDescription"
+                        rows="2"
+                        placeholder="简要说明这个提示词的用途、特点或使用场景...（选填）"
+                        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg resize-none transition-all text-sm"
+                        maxlength="200"
+                    ></textarea>
+                    <div class="flex items-center justify-between mt-1.5">
+                        <p class="text-xs text-gray-500">
+                            建议 50-200 字，帮助他人更好地了解此提示词
+                        </p>
+                        <span id="descCounter" class="char-counter text-xs text-gray-500">0 / 200</span>
+                    </div>
+                </div>
+
+                <!-- 提交人信息 -->
+                <div class="bg-blue-50 rounded-lg p-5 mb-4">
+                    <h3 class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                        提交人信息（选填）
+                    </h3>
+                    <p class="text-xs text-gray-600 mb-3">
+                        如果您希望展示您的社交媒体账号，可以填写以下信息。审核通过后，会在提示词详情页展示。
+                    </p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- 自媒体账号名称 -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                账号名称
+                            </label>
+                                <input 
+                                type="text"
+                                id="authorName"
+                                placeholder="例如：小红书昵称、B站UP主名"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg transition-all text-sm"
+                                maxlength="50"
+                            >
+                        </div>
+
+                        <!-- 自媒体账号链接 -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                账号链接
+                            </label>
+                            <input 
+                                type="url"
+                                id="authorLink"
+                                placeholder="https://..."
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg transition-all text-sm"
+                            >
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 邮箱（可选） -->
+                <div class="mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="block text-sm font-semibold text-gray-900">
+                            📧 邮箱地址（选填）
+                        </label>
+                        <span class="text-xs text-gray-500">接收审核结果通知</span>
+                    </div>
+                    <input 
+                        type="email"
+                        id="email"
+                        placeholder="your@email.com"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg transition-all text-sm"
+                    >
+                    <p class="text-xs text-gray-500 mt-1.5">
+                        如果您希望收到审核结果通知，请留下邮箱地址。我们会在审核通过或拒绝后发送邮件通知。
+                    </p>
+                </div>
+
+                <!-- 提交须知 -->
+                <div class="bg-blue-50 border border-blue-100 rounded-lg p-4 mb-4">
+                    <h3 class="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        提交须知
+                    </h3>
+                    <ul class="text-xs text-blue-800 space-y-1.5 ml-7">
+                        <li>• 请确保提交的内容是原创或已获得授权的提示词</li>
+                        <li>• 提示词应当清晰、实用，能够帮助他人更好地使用AI工具</li>
+                        <li>• 不要包含违法、违规或不当的内容</li>
+                        <li>• 审核通过后，您的提示词将公开展示在本站</li>
+                        <li>• 我们保留对提交内容进行编辑和修改的权利</li>
+                    </ul>
+                </div>
+
+                <!-- 同意条款 -->
+                <div class="mb-5">
+                    <label class="flex items-start gap-2.5 cursor-pointer">
+                        <input 
+                            type="checkbox" 
+                            id="agreeTerms"
+                            class="mt-0.5 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            required
+                        >
+                        <span class="text-sm text-gray-700">
+                            我已阅读并同意以上提交须知，确认提交的内容符合要求
+                        </span>
+                    </label>
+                </div>
+
+                <!-- 按钮组 -->
+                <div class="flex items-center gap-3">
+                    <button 
+                        type="submit"
+                        id="submitBtn"
+                        class="btn-primary flex-1 px-6 py-3 text-white rounded-lg font-semibold flex items-center justify-center gap-2"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        提交审核
+                    </button>
+                    <a 
+                        href="01-首页.html"
+                        class="px-6 py-3 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                        取消
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <!-- 底部提示 -->
+        <div class="text-center mt-6 text-xs text-gray-500">
+            <p>提交即代表您同意我们使用AI技术对您的提示词进行分析和优化</p>
+        </div>
+    </main>
+
+    <!-- 成功提示模态框 -->
+    <div id="successModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg p-8 max-w-md w-full fade-in">
+            <div class="text-center">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+                    <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-900 mb-2">提交成功！</h2>
+                <p class="text-gray-600 mb-6">
+                    感谢您的分享！我们会尽快审核您提交的提示词。
+                    <span id="emailNotice" class="hidden">审核结果将通过邮件通知您。</span>
+                </p>
+                <div class="flex flex-col gap-3">
+                    <a href="01-首页.html" class="btn-primary px-6 py-3 text-white rounded-lg font-semibold">
+                        返回首页
+                    </a>
+                    <button onclick="location.reload()" class="px-6 py-3 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
+                        继续提交
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 字符计数 - 提示词内容
+        const promptContent = document.getElementById('promptContent');
+        const charCounter = document.getElementById('charCounter');
+        const maxChars = 10000;
+
+        promptContent.addEventListener('input', () => {
+            const length = promptContent.value.length;
+            charCounter.textContent = `${length} / ${maxChars}`;
+            
+            // 颜色变化
+            charCounter.classList.remove('warning', 'danger');
+            if (length > maxChars * 0.9) {
+                charCounter.classList.add('danger');
+            } else if (length > maxChars * 0.7) {
+                charCounter.classList.add('warning');
+            }
+            
+            // 限制最大长度
+            if (length > maxChars) {
+                promptContent.value = promptContent.value.substring(0, maxChars);
+                charCounter.textContent = `${maxChars} / ${maxChars}`;
+            }
+        });
+
+        // 字符计数 - 提示词简介
+        const promptDescription = document.getElementById('promptDescription');
+        const descCounter = document.getElementById('descCounter');
+        const maxDescChars = 200;
+
+        promptDescription.addEventListener('input', () => {
+            const length = promptDescription.value.length;
+            descCounter.textContent = `${length} / ${maxDescChars}`;
+            
+            // 颜色变化
+            descCounter.classList.remove('warning', 'danger');
+            if (length > maxDescChars * 0.9) {
+                descCounter.classList.add('danger');
+            } else if (length > maxDescChars * 0.7) {
+                descCounter.classList.add('warning');
+            }
+        });
+
+        // 表单提交
+        const submitForm = document.getElementById('submitForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const successModal = document.getElementById('successModal');
+        const emailNotice = document.getElementById('emailNotice');
+        const emailInput = document.getElementById('email');
+
+        submitForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // 验证内容长度
+            if (promptContent.value.trim().length < 50) {
+                alert('提示词内容至少需要50个字符，请提供更详细的内容。');
+                return;
+            }
+            
+            // 禁用按钮，显示加载状态
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `
+                <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                提交中...
+            `;
+            
+            // 模拟提交延迟
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            // 显示成功模态框
+            if (emailInput.value.trim()) {
+                emailNotice.classList.remove('hidden');
+            }
+            successModal.classList.remove('hidden');
+            
+            // 重置表单
+            submitForm.reset();
+            charCounter.textContent = '0 / 10000';
+            charCounter.classList.remove('warning', 'danger');
+            descCounter.textContent = '0 / 200';
+            descCounter.classList.remove('warning', 'danger');
+            
+            // 恢复按钮
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = `
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                提交审核
+            `;
+        });
+
+        // 点击模态框外部关闭
+        successModal.addEventListener('click', (e) => {
+            if (e.target === successModal) {
+                successModal.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
+
