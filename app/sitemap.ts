@@ -40,7 +40,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 分类页面
   const categoryPages: MetadataRoute.Sitemap = categories.map((category) => ({
     url: `${siteUrl}/category/${category.slug}`,
-    lastModified: new Date(category.updated_at || category.created_at),
+    lastModified: new Date(category.created_at),
     changeFrequency: 'weekly' as const,
     priority: 0.9,
   }));
