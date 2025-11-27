@@ -1,12 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
 import type { Prompt } from '@/lib/types/database';
 import { formatNumber } from '@/lib/utils/formatNumber';
-import { useToast } from '@/components/ui/Toast';
-import { incrementCopyCount } from '@/app/actions/prompts';
-import { useFavorites } from '@/hooks/useFavorites';
 
 /**
  * 提示词卡片组件
@@ -20,13 +16,9 @@ interface PromptCardProps {
 
 export default function PromptCard({ prompt, compact = false }: PromptCardProps) {
   const router = useRouter();
-  const { showToast } = useToast();
-  const { isFavorite, toggleFavorite } = useFavorites();
-  const [isCopying, setIsCopying] = useState(false);
   // 只显示前3个标签
   const displayTags = prompt.tags?.slice(0, 3) || [];
   const hasAuthor = !!(prompt.author_name && prompt.author_link);
-  const favorited = isFavorite(prompt.id);
   
   const handleCardClick = () => {
     router.push(`/prompt/${prompt.id}`);
@@ -38,30 +30,6 @@ export default function PromptCard({ prompt, compact = false }: PromptCardProps)
       window.open(prompt.author_link, '_blank', 'noopener,noreferrer');
     }
   };
-
-  const handleCopyClick = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // 阻止卡片点击事件
-    if (isCopying) return;
-
-    setIsCopying(true);
-    try {
-      await navigator.clipboard.writeText(prompt.content);
-      showToast('success', '复制成功！');
-      // 增加复制次数
-      incrementCopyCount(prompt.id).catch(err => console.error('Failed to increment copy count:', err));
-    } catch (error) {
-      console.error('Copy failed:', error);
-      showToast('error', '复制失败，请重试');
-    } finally {
-      setTimeout(() => setIsCopying(false), 300);
-    }
-  };
-
-  const handleFavoriteClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // 阻止卡片点击事件
-    const added = toggleFavorite(prompt.id);
-    showToast('success', added ? '已添加到收藏' : '已取消收藏');
-  };
   
   return (
     <div
@@ -71,52 +39,6 @@ export default function PromptCard({ prompt, compact = false }: PromptCardProps)
       }`}
       style={{ height: compact ? 'auto' : '135px' }}
     >
-      {/* 快速操作按钮 - 悬停时显示 */}
-      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
-        {/* 收藏按钮 */}
-        <button
-          onClick={handleFavoriteClick}
-          className={`p-1.5 bg-white border rounded-md hover:scale-110 transition-all duration-200 shadow-sm ${
-            favorited
-              ? 'border-red-300 text-red-500'
-              : 'border-gray-200 text-gray-600 hover:bg-red-50 hover:border-red-300'
-          }`}
-          title={favorited ? '取消收藏' : '收藏'}
-        >
-          <svg
-            className="w-4 h-4"
-            fill={favorited ? 'currentColor' : 'none'}
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-            />
-          </svg>
-        </button>
-
-        {/* 复制按钮 */}
-        <button
-          onClick={handleCopyClick}
-          className="p-1.5 bg-white border border-gray-200 rounded-md hover:bg-blue-50 hover:border-blue-300 hover:scale-110 transition-all duration-200 shadow-sm"
-          title="快速复制提示词"
-          disabled={isCopying}
-        >
-          {isCopying ? (
-            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          ) : (
-            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-          )}
-        </button>
-      </div>
-
       {/* 标题和分类 */}
       <div className="flex items-start gap-1.5 mb-1 flex-shrink-0">
         <h3 className="text-base font-semibold text-gray-900 line-clamp-1 flex-1 min-w-0">

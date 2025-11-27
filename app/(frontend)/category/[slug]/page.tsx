@@ -10,6 +10,9 @@ import EmptyState from '@/components/ui/EmptyState';
  * 展示特定分类下的所有提示词
  */
 
+// ISR: 每10分钟重新生成页面
+export const revalidate = 600;
+
 interface PageProps {
   params: Promise<{
     slug: string;
@@ -29,6 +32,10 @@ export async function generateMetadata({ params }: PageProps) {
   return {
     title: `${category.name} - AI提示词库`,
     description: category.description || `浏览${category.name}分类下的所有AI提示词`,
+    openGraph: {
+      title: `${category.name} - AI提示词库`,
+      description: category.description || `浏览${category.name}分类下的所有AI提示词`,
+    },
   };
 }
 
@@ -77,15 +84,8 @@ export default async function CategoryPage({ params }: PageProps) {
       ) : (
         <EmptyState
           title="该分类暂无提示词"
-          message="快来提交第一个提示词吧！"
-          action={
-            <a
-              href="/submit"
-              className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              提交提示词
-            </a>
-          }
+          description="快来提交第一个提示词吧！"
+          action={{ label: '提交提示词', href: '/submit' }}
         />
       )}
     </div>

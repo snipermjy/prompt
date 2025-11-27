@@ -8,6 +8,10 @@ import SubmitForm from './SubmitForm';
 export const metadata = {
   title: '提交提示词 - AI提示词库',
   description: '分享你的优质AI提示词，帮助更多人提升AI使用效率',
+  openGraph: {
+    title: '提交提示词 - AI提示词库',
+    description: '分享你的优质AI提示词，帮助更多人提升AI使用效率',
+  },
 };
 
 export default function SubmitPage() {

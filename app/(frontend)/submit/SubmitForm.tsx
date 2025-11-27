@@ -7,6 +7,7 @@ import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
 import Button from '@/components/ui/Button';
 import Modal, { ModalBody } from '@/components/ui/Modal';
+import { validateEmail, validateUrl, validateLength, checkRateLimit } from '@/lib/utils/validation';
 
 /**
  * 用户提交表单组件
@@ -16,22 +17,6 @@ import Modal, { ModalBody } from '@/components/ui/Modal';
 const MIN_CONTENT_LENGTH = 10;
 const MAX_CONTENT_LENGTH = 10000;
 const MAX_DESCRIPTION_LENGTH = 200;
-
-function validateEmail(email: string): boolean {
-  if (!email) return true; // 可选字段
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-}
-
-function validateUrl(url: string): boolean {
-  if (!url) return true; // 可选字段
-  try {
-    new URL(url);
-    return url.startsWith('http://') || url.startsWith('https://');
-  } catch {
-    return false;
-  }
-}
 
 export default function SubmitForm() {
   const router = useRouter();
@@ -68,13 +53,17 @@ export default function SubmitForm() {
     }
 
     // 验证邮箱
-    if (touched.email && submitterEmail && !validateEmail(submitterEmail)) {
-      errors.email = '请输入有效的邮箱地址';
+    if (touched.email && submitterEmail) {
+      if (!validateEmail(submitterEmail)) {
+        errors.email = '请输入有效的邮箱地址';
+      }
     }
 
     // 验证URL
-    if (touched.authorLink && authorLink && !validateUrl(authorLink)) {
-      errors.authorLink = '请输入有效的链接（以 http:// 或 https:// 开头）';
+    if (touched.authorLink && authorLink) {
+      if (!validateUrl(authorLink)) {
+        errors.authorLink = '请输入有效的链接（以 http:// 或 https:// 开头）';
+      }
     }
 
     return {
@@ -97,6 +86,12 @@ export default function SubmitForm() {
     
     if (!content.trim() || content.length < MIN_CONTENT_LENGTH) {
       setMessage({ type: 'error', text: `提示词内容至少需要 ${MIN_CONTENT_LENGTH} 个字符` });
+      return;
+    }
+    
+    // 客户端限流检查（防止恶意提交）
+    if (!checkRateLimit('submit_form', 3, 60000)) {
+      setMessage({ type: 'error', text: '提交过于频繁，请稍后再试' });
       return;
     }
     

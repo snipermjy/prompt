@@ -15,14 +15,29 @@ export function useSearchHistory() {
 
   // 从 localStorage 加载搜索历史
   useEffect(() => {
+    // 确保在客户端环境
+    if (typeof window === 'undefined') {
+      setIsLoaded(true);
+      return;
+    }
+    
     try {
       const stored = localStorage.getItem(SEARCH_HISTORY_KEY);
       if (stored) {
         const historyArray = JSON.parse(stored) as string[];
-        setHistory(historyArray);
+        // 验证数据格式
+        if (Array.isArray(historyArray)) {
+          setHistory(historyArray.filter(term => typeof term === 'string' && term.trim().length > 0));
+        }
       }
     } catch (error) {
       console.error('Failed to load search history:', error);
+      // 清除损坏的数据
+      try {
+        localStorage.removeItem(SEARCH_HISTORY_KEY);
+      } catch (e) {
+        // 忽略清除错误
+      }
     } finally {
       setIsLoaded(true);
     }

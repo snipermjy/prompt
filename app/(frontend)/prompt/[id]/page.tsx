@@ -7,16 +7,17 @@ import { formatDate } from '@/lib/utils/formatDate';
 import { languageConfig } from '@/lib/config/site';
 import CopyButton from './CopyButton';
 import ShareButton from './ShareButton';
+import BackButton from './BackButton';
 import AnimatedNumber from '@/components/ui/AnimatedNumber';
+import { ArticleJsonLd, BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 
 /**
  * 提示词详情页
- * 禁用缓存，确保统计数据实时更新
+ * ISR: 每1分钟重新生成页面以更新统计数据
  */
 
-// 禁用页面缓存，每次请求都重新获取数据
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// ISR: 每1分钟重新生成页面
+export const revalidate = 60;
 
 interface PageProps {
   params: Promise<{
@@ -37,6 +38,17 @@ export async function generateMetadata({ params }: PageProps) {
   return {
     title: `${prompt.title} - AI提示词库`,
     description: prompt.description || prompt.title,
+    keywords: [prompt.title, prompt.category, ...prompt.tags, ...prompt.target_ai],
+    openGraph: {
+      title: `${prompt.title} - AI提示词库`,
+      description: prompt.description || prompt.title,
+      type: 'article',
+    },
+    twitter: {
+      card: 'summary',
+      title: `${prompt.title} - AI提示词库`,
+      description: prompt.description || prompt.title,
+    },
   };
 }
 
@@ -57,9 +69,20 @@ export default async function PromptDetailPage({ params }: PageProps) {
   incrementViewCount(id).catch(err => console.error('Failed to increment view count:', err));
   
   const language = languageConfig[prompt.language];
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const promptUrl = `${siteUrl}/prompt/${id}`;
   
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <>
+      <ArticleJsonLd prompt={prompt} url={promptUrl} />
+      <BreadcrumbJsonLd
+        items={[
+          { name: '首页', url: siteUrl },
+          { name: prompt.category, url: `${siteUrl}/category/${prompt.category}` },
+          { name: prompt.title, url: promptUrl },
+        ]}
+      />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* 面包屑导航 */}
       <Breadcrumb
         items={[
@@ -100,19 +123,19 @@ export default async function PromptDetailPage({ params }: PageProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                 </svg>
-                <AnimatedNumber value={prompt.view_count} format={formatNumber} className="text-xs" />
+                <AnimatedNumber value={prompt.view_count} useFormatNumber className="text-xs" />
               </div>
               <div className="flex items-center gap-1" title="复制量">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                 </svg>
-                <AnimatedNumber value={prompt.copy_count} format={formatNumber} className="text-xs" />
+                <AnimatedNumber value={prompt.copy_count} useFormatNumber className="text-xs" />
               </div>
               <div className="flex items-center gap-1" title="分享量">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                 </svg>
-                <AnimatedNumber value={prompt.share_count} format={formatNumber} className="text-xs" />
+                <AnimatedNumber value={prompt.share_count} useFormatNumber className="text-xs" />
               </div>
             </div>
           </div>
@@ -206,19 +229,12 @@ export default async function PromptDetailPage({ params }: PageProps) {
               )}
             </div>
             {/* 返回按钮 */}
-            <button
-              onClick={() => window.history.back()}
-              className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              返回上一页
-            </button>
+            <BackButton />
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 

@@ -14,13 +14,20 @@ interface PageProps {
   }>;
 }
 
+// ISR: 搜索页面不缓存，保持动态
+export const dynamic = 'force-dynamic';
+
 export async function generateMetadata({ searchParams }: PageProps) {
   const params = await searchParams;
   const keyword = params.q || '';
   
   return {
     title: keyword ? `搜索: ${keyword} - AI提示词库` : '搜索 - AI提示词库',
-    description: `搜索AI提示词: ${keyword}`,
+    description: keyword ? `搜索AI提示词: ${keyword}` : '搜索优质AI提示词，快速找到你需要的prompt',
+    robots: {
+      index: false, // 搜索结果页不索引
+      follow: true,
+    },
   };
 }
 

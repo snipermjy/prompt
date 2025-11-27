@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSearchHistory } from '@/hooks/useSearchHistory';
+import { sanitizeString } from '@/lib/utils/validation';
 
 interface SearchWithHistoryProps {
   placeholder?: string;
@@ -39,19 +40,20 @@ export default function SearchWithHistory({
     };
   }, []);
 
-  const handleSearch = (searchQuery: string) => {
-    const trimmedQuery = searchQuery.trim();
-    if (!trimmedQuery) return;
+  const handleSearch = useCallback((searchQuery: string) => {
+    // 清理和验证输入
+    const sanitized = sanitizeString(searchQuery, 100);
+    if (!sanitized || sanitized.length < 2) return;
 
-    addSearchTerm(trimmedQuery);
+    addSearchTerm(sanitized);
     setShowDropdown(false);
     
     if (onSearch) {
-      onSearch(trimmedQuery);
+      onSearch(sanitized);
     } else {
-      router.push(`/search?q=${encodeURIComponent(trimmedQuery)}`);
+      router.push(`/search?q=${encodeURIComponent(sanitized)}`);
     }
-  };
+  }, [addSearchTerm, onSearch, router]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

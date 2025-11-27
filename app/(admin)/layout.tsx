@@ -6,8 +6,15 @@ import AdminSidebar from '@/components/layout/AdminSidebar';
  */
 
 export const metadata = {
-  title: '管理后台 - AI提示词库',
+  title: {
+    default: '管理后台 - AI提示词库',
+    template: '%s - 管理后台 - AI提示词库',
+  },
   description: 'AI提示词库管理后台',
+  robots: {
+    index: false, // 管理后台不被搜索引擎索引
+    follow: false,
+  },
 };
 
 export default function AdminLayout({

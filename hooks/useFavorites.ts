@@ -14,14 +14,29 @@ export function useFavorites() {
 
   // 从 localStorage 加载收藏列表
   useEffect(() => {
+    // 确保在客户端环境
+    if (typeof window === 'undefined') {
+      setIsLoaded(true);
+      return;
+    }
+    
     try {
       const stored = localStorage.getItem(FAVORITES_KEY);
       if (stored) {
         const favArray = JSON.parse(stored) as string[];
-        setFavorites(new Set(favArray));
+        // 验证数据格式
+        if (Array.isArray(favArray)) {
+          setFavorites(new Set(favArray.filter(id => typeof id === 'string')));
+        }
       }
     } catch (error) {
       console.error('Failed to load favorites:', error);
+      // 清除损坏的数据
+      try {
+        localStorage.removeItem(FAVORITES_KEY);
+      } catch (e) {
+        // 忽略清除错误
+      }
     } finally {
       setIsLoaded(true);
     }

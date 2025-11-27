@@ -1,0 +1,643 @@
+'use client';
+
+import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import type { BatchTask, BatchTaskStats } from '@/lib/types/batch';
+import type { Category } from '@/lib/types/database';
+import { getCategories } from '@/app/actions/categories';
+import { createPrompt } from '@/app/actions/prompts';
+import Textarea from '@/components/ui/Textarea';
+import Button from '@/components/ui/Button';
+import TaskDetailModal from './TaskDetailModal';
+import TaskEditForm from './TaskEditForm';
+
+const MAX_CONCURRENT = 10; // 最大并发数
+const STORAGE_KEY = 'batch_tasks';
+
+/**
+ * 批量添加提示词页面
+ */
+export default function BatchAddPage() {
+  const router = useRouter();
+  const [content, setContent] = useState('');
+  const [tasks, setTasks] = useState<BatchTask[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const tasksRef = useRef<BatchTask[]>([]);
+
+  // 加载分类
+  useEffect(() => {
+    getCategories().then(setCategories);
+  }, []);
+
+  // 从localStorage恢复任务
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setTasks(parsed);
+      } catch (e) {
+        console.error('Failed to restore tasks:', e);
+      }
+    }
+  }, []);
+
+  // 保存任务到localStorage并同步ref
+  useEffect(() => {
+    tasksRef.current = tasks;
+    if (tasks.length > 0) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    }
+  }, [tasks]);
+
+  // 计算统计信息
+  const stats: BatchTaskStats = {
+    total: tasks.length,
+    pending: tasks.filter(t => t.status === 'pending').length,
+    processing: tasks.filter(t => t.status === 'processing').length,
+    success: tasks.filter(t => t.status === 'success').length,
+    error: tasks.filter(t => t.status === 'error').length,
+  };
+
+  // 添加任务
+  const handleAddTask = () => {
+    if (!content.trim()) {
+      alert('请输入提示词内容');
+      return;
+    }
+
+    if (content.trim().length < 20) {
+      alert('提示词内容至少需要20个字符');
+      return;
+    }
+
+    const newTask: BatchTask = {
+      id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      content: content.trim(),
+      status: 'pending',
+      progress: 0,
+      progressText: '等待处理',
+      result: null,
+      error: null,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      selected: false,
+      isEditing: false,
+    };
+
+    setTasks(prev => [...prev, newTask]);
+    setContent('');
+
+    // 立即开始处理这个任务，直接传递content
+    processTask(newTask.id, newTask.content);
+  };
+
+  // 处理单个任务
+  const processTask = async (taskId: string, taskContent?: string) => {
+    // 如果没有传content，从ref获取
+    if (!taskContent) {
+      const task = tasksRef.current.find(t => t.id === taskId);
+      if (!task) {
+        console.error('Task not found:', taskId);
+        return;
+      }
+      taskContent = task.content;
+    }
+
+    // 更新状态为处理中
+    updateTask(taskId, {
+      status: 'processing',
+      progress: 10,
+      progressText: '正在连接AI服务...',
+    });
+
+    try {
+      // 调用AI生成
+      updateTask(taskId, {
+        progress: 30,
+        progressText: '正在分析内容...',
+      });
+
+      const response = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: taskContent }),
+      });
+
+      updateTask(taskId, {
+        progress: 60,
+        progressText: '正在处理结果...',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'AI生成失败');
+      }
+
+      if (data.success && data.data) {
+        updateTask(taskId, {
+          status: 'success',
+          progress: 100,
+          progressText: '生成完成',
+          result: data.data,
+        });
+      } else {
+        throw new Error('AI返回数据格式错误');
+      }
+    } catch (error) {
+      updateTask(taskId, {
+        status: 'error',
+        progress: 0,
+        progressText: '生成失败',
+        error: error instanceof Error ? error.message : '未知错误',
+      });
+    }
+  };
+
+  // 更新任务
+  const updateTask = (taskId: string, updates: Partial<BatchTask>) => {
+    setTasks(prev =>
+      prev.map(t =>
+        t.id === taskId
+          ? { ...t, ...updates, updatedAt: Date.now() }
+          : t
+      )
+    );
+  };
+
+  // 重试任务
+  const handleRetry = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    
+    updateTask(taskId, {
+      status: 'pending',
+      progress: 0,
+      progressText: '等待处理',
+      error: null,
+    });
+    processTask(taskId, task.content);
+  };
+
+  // 删除任务
+  const handleDelete = (taskId: string) => {
+    setTasks(prev => prev.filter(t => t.id !== taskId));
+  };
+
+  // 切换选中状态
+  const handleToggleSelect = (taskId: string) => {
+    updateTask(taskId, {
+      selected: !tasks.find(t => t.id === taskId)?.selected,
+    });
+  };
+
+  // 全选/取消全选
+  const handleToggleSelectAll = () => {
+    const successTasks = tasks.filter(t => t.status === 'success');
+    const allSelected = successTasks.every(t => t.selected);
+    
+    setTasks(prev =>
+      prev.map(t =>
+        t.status === 'success'
+          ? { ...t, selected: !allSelected }
+          : t
+      )
+    );
+  };
+
+  // 切换编辑状态
+  const handleToggleEdit = (taskId: string) => {
+    updateTask(taskId, {
+      isEditing: !tasks.find(t => t.id === taskId)?.isEditing,
+    });
+  };
+
+  // 保存编辑
+  const handleSaveEdit = (taskId: string, updates: Partial<BatchTask['result']>) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task || !task.result) return;
+
+    updateTask(taskId, {
+      result: { ...task.result, ...updates },
+      isEditing: false,
+    });
+  };
+
+  // 批量发布选中的任务
+  const handlePublishSelected = async () => {
+    const selectedTasks = tasks.filter(t => t.status === 'success' && t.selected && t.result);
+    
+    if (selectedTasks.length === 0) {
+      alert('请先选择要发布的任务');
+      return;
+    }
+
+    // 显示确认对话框，列出要发布的标题
+    const titles = selectedTasks.map(t => `• ${t.result!.title}`).join('\n');
+    if (!confirm(`确定要发布以下 ${selectedTasks.length} 个提示词吗？\n\n${titles}`)) {
+      return;
+    }
+
+    let published = 0;
+    let failed = 0;
+
+    for (const task of selectedTasks) {
+      if (!task.result) continue;
+
+      try {
+        // 查找匹配的分类
+        const category = categories.find(
+          c => c.slug === task.result!.category || c.name === task.result!.category
+        );
+
+        await createPrompt({
+          title: task.result.title,
+          content: task.content,
+          description: task.result.description,
+          category: category?.slug || categories[0]?.slug || 'other',
+          tags: task.result.tags,
+          target_ai: task.result.target_ai,
+          difficulty: 'beginner',
+          language: task.result.language,
+          status: 'published',
+        });
+
+        // 发布成功，从列表移除
+        handleDelete(task.id);
+        published++;
+      } catch (error) {
+        console.error('发布失败:', error);
+        updateTask(task.id, {
+          status: 'error',
+          error: '发布失败: ' + (error instanceof Error ? error.message : '未知错误'),
+          selected: false,
+        });
+        failed++;
+      }
+    }
+
+    // 显示发布结果
+    if (published > 0 && failed === 0) {
+      const viewPrompts = confirm(`✅ 成功发布 ${published} 个提示词！\n\n点击"确定"查看已发布的提示词，点击"取消"继续添加`);
+      if (viewPrompts) {
+        localStorage.removeItem(STORAGE_KEY);
+        router.push('/admin/prompts');
+      }
+    } else if (published > 0 && failed > 0) {
+      alert(`发布完成！\n✅ 成功: ${published} 个\n❌ 失败: ${failed} 个\n\n失败的任务已保留，可以重试`);
+    } else {
+      alert(`❌ 发布失败！所有任务都未能发布成功`);
+    }
+  };
+
+  // 清空所有任务
+  const handleClearAll = () => {
+    if (!confirm('确定要清空所有任务吗？')) return;
+    setTasks([]);
+    tasksRef.current = [];
+    localStorage.removeItem(STORAGE_KEY);
+  };
+
+  // 清空失败的任务
+  const handleClearErrors = () => {
+    setTasks(prev => prev.filter(t => t.status !== 'error'));
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* 页面标题 */}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">批量添加提示词</h1>
+        <p className="text-sm text-gray-600 mt-1">
+          输入提示词内容后，AI将自动生成标题、分类、标签等信息
+        </p>
+      </div>
+
+      {/* 输入区域 */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <Textarea
+          label="提示词内容"
+          placeholder="输入提示词内容（至少20个字符）..."
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          rows={6}
+          maxLength={10000}
+          showCount
+          currentCount={content.length}
+        />
+        <div className="flex items-center justify-between mt-4">
+          <p className="text-xs text-gray-500">
+            添加后将自动开始AI分析，您可以继续添加下一个
+          </p>
+          <Button
+            onClick={handleAddTask}
+            variant="primary"
+            disabled={!content.trim() || content.trim().length < 20}
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            添加到队列
+          </Button>
+        </div>
+      </div>
+
+      {/* 统计信息 */}
+      {tasks.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+            <div className="text-xs text-gray-600">总任务数</div>
+          </div>
+          <div className="bg-yellow-50 rounded-lg border border-yellow-200 p-4">
+            <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
+            <div className="text-xs text-yellow-700">等待中</div>
+          </div>
+          <div className="bg-blue-50 rounded-lg border border-blue-200 p-4">
+            <div className="text-2xl font-bold text-blue-600">{stats.processing}</div>
+            <div className="text-xs text-blue-700">处理中</div>
+          </div>
+          <div className="bg-green-50 rounded-lg border border-green-200 p-4">
+            <div className="text-2xl font-bold text-green-600">{stats.success}</div>
+            <div className="text-xs text-green-700">已完成</div>
+          </div>
+          <div className="bg-red-50 rounded-lg border border-red-200 p-4">
+            <div className="text-2xl font-bold text-red-600">{stats.error}</div>
+            <div className="text-xs text-red-700">失败</div>
+          </div>
+        </div>
+      )}
+
+      {/* 批量操作 */}
+      {tasks.length > 0 && (
+        <div className="space-y-3">
+          {/* 选择和统计 */}
+          {stats.success > 0 && (
+            <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={tasks.filter(t => t.status === 'success').every(t => t.selected)}
+                    onChange={handleToggleSelectAll}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">全选</span>
+                </label>
+                <span className="text-sm text-gray-600">
+                  已选中 {tasks.filter(t => t.selected).length} / {stats.success} 个
+                </span>
+              </div>
+              <Button
+                onClick={handlePublishSelected}
+                variant="primary"
+                disabled={tasks.filter(t => t.selected).length === 0}
+              >
+                发布选中的 ({tasks.filter(t => t.selected).length})
+              </Button>
+            </div>
+          )}
+          
+          {/* 其他操作 */}
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={handleClearErrors}
+              variant="secondary"
+              disabled={stats.error === 0}
+            >
+              清空失败的 ({stats.error})
+            </Button>
+            <Button
+              onClick={handleClearAll}
+              variant="secondary"
+            >
+              清空所有
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* 任务列表 */}
+      {tasks.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-lg font-semibold text-gray-900">任务队列</h2>
+          {tasks.map((task) => (
+            task.isEditing ? (
+              <TaskEditForm
+                key={task.id}
+                task={task}
+                categories={categories}
+                onSave={handleSaveEdit}
+                onCancel={() => handleToggleEdit(task.id)}
+              />
+            ) : (
+              <TaskCard
+                key={task.id}
+                task={task}
+                categories={categories}
+                onRetry={handleRetry}
+                onDelete={handleDelete}
+                onToggleSelect={handleToggleSelect}
+                onToggleEdit={handleToggleEdit}
+                onViewDetail={() => setSelectedTaskId(task.id)}
+              />
+            )
+          ))}
+        </div>
+      )}
+
+      {/* 空状态 */}
+      {tasks.length === 0 && (
+        <div className="bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
+          <svg className="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">还没有任务</h3>
+          <p className="text-sm text-gray-600">
+            在上方输入提示词内容，点击"添加到队列"开始批量处理
+          </p>
+        </div>
+      )}
+
+      {/* 详情预览Modal */}
+      {selectedTaskId && (
+        <TaskDetailModal
+          task={tasks.find(t => t.id === selectedTaskId)!}
+          isOpen={!!selectedTaskId}
+          onClose={() => setSelectedTaskId(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * 任务卡片组件
+ */
+function TaskCard({
+  task,
+  categories,
+  onRetry,
+  onDelete,
+  onToggleSelect,
+  onToggleEdit,
+  onViewDetail,
+}: {
+  task: BatchTask;
+  categories: Category[];
+  onRetry: (id: string) => void;
+  onDelete: (id: string) => void;
+  onToggleSelect: (id: string) => void;
+  onToggleEdit: (id: string) => void;
+  onViewDetail: () => void;
+}) {
+  const getStatusColor = () => {
+    switch (task.status) {
+      case 'pending':
+        return 'border-yellow-200 bg-yellow-50';
+      case 'processing':
+        return 'border-blue-200 bg-blue-50';
+      case 'success':
+        return 'border-green-200 bg-green-50';
+      case 'error':
+        return 'border-red-200 bg-red-50';
+    }
+  };
+
+  const getStatusIcon = () => {
+    switch (task.status) {
+      case 'pending':
+        return (
+          <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        );
+      case 'processing':
+        return (
+          <svg className="w-5 h-5 text-blue-600 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        );
+      case 'success':
+        return (
+          <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        );
+      case 'error':
+        return (
+          <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        );
+    }
+  };
+
+  return (
+    <div className={`rounded-lg border-2 p-4 ${getStatusColor()}`}>
+      <div className="flex items-start gap-4">
+        {/* 选择框（仅成功状态显示） */}
+        {task.status === 'success' && (
+          <div className="flex-shrink-0 mt-1">
+            <input
+              type="checkbox"
+              checked={task.selected}
+              onChange={() => onToggleSelect(task.id)}
+              className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            />
+          </div>
+        )}
+
+        {/* 状态图标 */}
+        <div className="flex-shrink-0 mt-1">
+          {getStatusIcon()}
+        </div>
+
+        {/* 内容区域 */}
+        <div className="flex-1 min-w-0">
+          {/* 提示词内容 */}
+          <div className="mb-3">
+            <p className="text-sm text-gray-700 line-clamp-2">{task.content}</p>
+          </div>
+
+          {/* 进度条 */}
+          {task.status === 'processing' && (
+            <div className="mb-3">
+              <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                <span>{task.progressText}</span>
+                <span>{task.progress}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${task.progress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* 成功结果 */}
+          {task.status === 'success' && task.result && (
+            <div className="space-y-2 mb-3">
+              <div>
+                <span className="text-xs font-semibold text-gray-700">标题：</span>
+                <span className="text-sm text-gray-900">{task.result.title}</span>
+              </div>
+              <div>
+                <span className="text-xs font-semibold text-gray-700">分类：</span>
+                <span className="text-sm text-gray-900">{task.result.category}</span>
+              </div>
+              <div>
+                <span className="text-xs font-semibold text-gray-700">标签：</span>
+                <span className="text-sm text-gray-900">{task.result.tags.join(', ')}</span>
+              </div>
+            </div>
+          )}
+
+          {/* 错误信息 */}
+          {task.status === 'error' && task.error && (
+            <div className="mb-3">
+              <p className="text-sm text-red-700">{task.error}</p>
+            </div>
+          )}
+
+          {/* 操作按钮 */}
+          <div className="flex items-center gap-2">
+            {task.status === 'success' && (
+              <>
+                <button
+                  onClick={onViewDetail}
+                  className="text-xs px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                >
+                  查看详情
+                </button>
+                <button
+                  onClick={() => onToggleEdit(task.id)}
+                  className="text-xs px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                >
+                  编辑
+                </button>
+              </>
+            )}
+            {task.status === 'error' && (
+              <button
+                onClick={() => onRetry(task.id)}
+                className="text-xs px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+              >
+                重试
+              </button>
+            )}
+            <button
+              onClick={() => onDelete(task.id)}
+              className="text-xs px-3 py-1 text-red-600 hover:bg-red-100 rounded transition-colors"
+            >
+              删除
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -100,9 +100,24 @@ export async function searchPrompts(
   limit: number = 20
 ): Promise<Prompt[]> {
   try {
-    if (!keyword || keyword.trim().length < 2) {
+    // 验证和清理输入
+    if (!keyword || typeof keyword !== 'string') {
       return [];
     }
+    
+    const trimmedKeyword = keyword.trim();
+    
+    if (trimmedKeyword.length < 2) {
+      return [];
+    }
+    
+    // 限制关键词长度，防止过长查询
+    if (trimmedKeyword.length > 100) {
+      return [];
+    }
+    
+    // 转义特殊字符，防止SQL注入
+    const sanitizedKeyword = trimmedKeyword.replace(/[%_]/g, '\\$&');
     
     const supabase = await createClient();
     
@@ -110,8 +125,9 @@ export async function searchPrompts(
       .from('prompts')
       .select('*')
       .eq('status', 'published')
-      .or(`title.ilike.%${keyword}%,content.ilike.%${keyword}%,description.ilike.%${keyword}%`)
-      .limit(limit);
+      .or(`title.ilike.%${sanitizedKeyword}%,content.ilike.%${sanitizedKeyword}%,description.ilike.%${sanitizedKeyword}%`)
+      .order('created_at', { ascending: false })
+      .limit(Math.min(limit, 100)); // 限制最大返回数量
     
     if (error) {
       console.error('Failed to search prompts:', error);

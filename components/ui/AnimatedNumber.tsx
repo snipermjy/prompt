@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { formatNumber } from '@/lib/utils/formatNumber';
 
 interface AnimatedNumberProps {
   value: number;
   duration?: number; // 动画持续时间（毫秒）
   className?: string;
-  format?: (value: number) => string; // 自定义格式化函数
+  useFormatNumber?: boolean; // 是否使用formatNumber格式化
 }
 
 /**
@@ -17,7 +18,7 @@ export default function AnimatedNumber({
   value, 
   duration = 1000, 
   className = '',
-  format 
+  useFormatNumber = false
 }: AnimatedNumberProps) {
   const [displayValue, setDisplayValue] = useState(0);
   const [hasAnimated, setHasAnimated] = useState(false);
@@ -71,7 +72,7 @@ export default function AnimatedNumber({
     requestAnimationFrame(step);
   };
 
-  const formattedValue = format ? format(displayValue) : displayValue.toLocaleString();
+  const formattedValue = useFormatNumber ? formatNumber(displayValue) : displayValue.toLocaleString();
 
   return (
     <span ref={elementRef} className={className}>

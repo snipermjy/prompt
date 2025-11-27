@@ -3,15 +3,15 @@ import { getPrompts } from '@/app/actions/prompts';
 import { getCategoriesWithCount } from '@/app/actions/categories';
 import LoadMore from '@/components/features/LoadMore';
 import { NoDataState } from '@/components/ui/EmptyState';
+import { WebsiteJsonLd } from '@/components/seo/JsonLd';
 
 /**
  * 首页
  * 展示分类导航和最新提示词列表
  */
 
-// 禁用页面缓存，确保显示最新数据
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// ISR: 每5分钟重新生成页面
+export const revalidate = 300;
 
 export const metadata = {
   title: 'AI提示词库 - 精选优质AI提示词',
@@ -42,8 +42,12 @@ export default async function HomePage() {
     categoryName: categoryMap.get(prompt.category) || prompt.category,
   }));
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
   return (
-    <div className="max-w-[1920px] mx-auto flex">
+    <>
+      <WebsiteJsonLd url={siteUrl} />
+      <div className="max-w-[1920px] mx-auto flex">
       {/* 左侧分类导航 - 桌面端显示 */}
       <aside className="hidden md:block w-64 bg-white border-r border-gray-100 min-h-[calc(100vh-81px)] sticky top-[81px] overflow-y-auto">
         <div className="p-4">{/* 分类导航内容 */}
@@ -136,7 +140,8 @@ export default async function HomePage() {
           <NoDataState actionLabel="提交提示词" actionHref="/submit" />
         )}
       </main>
-    </div>
+      </div>
+    </>
   );
 }
 

@@ -100,13 +100,25 @@ CREATE OR REPLACE FUNCTION increment_prompt_counter(
 )
 RETURNS VOID AS $$
 BEGIN
+  -- 只允许特定的计数器名称
+  IF counter_name NOT IN ('view_count', 'copy_count', 'share_count') THEN
+    RAISE EXCEPTION 'Invalid counter name';
+  END IF;
+  
+  -- 只更新已发布的提示词
   IF counter_name = 'view_count' THEN
-    UPDATE prompts SET view_count = view_count + 1 WHERE id = prompt_id;
+    UPDATE prompts SET view_count = view_count + 1 
+    WHERE id = prompt_id AND status = 'published';
   ELSIF counter_name = 'copy_count' THEN
-    UPDATE prompts SET copy_count = copy_count + 1 WHERE id = prompt_id;
+    UPDATE prompts SET copy_count = copy_count + 1 
+    WHERE id = prompt_id AND status = 'published';
   ELSIF counter_name = 'share_count' THEN
-    UPDATE prompts SET share_count = share_count + 1 WHERE id = prompt_id;
+    UPDATE prompts SET share_count = share_count + 1 
+    WHERE id = prompt_id AND status = 'published';
   END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 允许所有人调用计数器函数
+GRANT EXECUTE ON FUNCTION increment_prompt_counter(UUID, TEXT) TO anon, authenticated;
 
