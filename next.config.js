@@ -21,6 +21,20 @@ const nextConfig = {
   // 性能优化
   poweredByHeader: false,
   generateEtags: true,
+  // 生产环境禁用 admin 路由
+  async redirects() {
+    // 只在生产环境（Vercel）禁用 admin
+    if (process.env.VERCEL) {
+      return [
+        {
+          source: '/admin/:path*',
+          destination: '/',
+          permanent: false,
+        },
+      ];
+    }
+    return [];
+  },
 }
 
 module.exports = nextConfig
