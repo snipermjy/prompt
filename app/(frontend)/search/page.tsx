@@ -1,4 +1,5 @@
 import { searchPrompts } from '@/app/actions/prompts';
+import { getCategoriesWithCount } from '@/app/actions/categories';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import PromptCard from '@/components/features/PromptCard';
 import EmptyState, { NoSearchResultsState } from '@/components/ui/EmptyState';
@@ -38,6 +39,16 @@ export default async function SearchPage({ searchParams }: PageProps) {
   // 执行搜索
   const prompts = keyword ? await searchPrompts(keyword, 50) : [];
   
+  // 获取分类映射，用于显示中文分类名
+  const categories = await getCategoriesWithCount();
+  const categoryMap = new Map(categories.map(cat => [cat.slug, cat.name]));
+  
+  // 为每个提示词添加分类名称
+  const promptsWithCategoryName = prompts.map(prompt => ({
+    ...prompt,
+    categoryName: categoryMap.get(prompt.category) || prompt.category,
+  }));
+  
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* 面包屑导航 */}
@@ -59,7 +70,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
           )}
         </h1>
         {keyword && (
-          <p className="text-gray-600">找到 {prompts.length} 个相关提示词</p>
+          <p className="text-gray-600">找到 {promptsWithCategoryName.length} 个相关提示词</p>
         )}
       </div>
       
@@ -75,9 +86,9 @@ export default async function SearchPage({ searchParams }: PageProps) {
           description="在顶部搜索框输入关键词，查找你需要的提示词"
           action={{ label: '浏览全部', href: '/' }}
         />
-      ) : prompts.length > 0 ? (
+      ) : promptsWithCategoryName.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-          {prompts.map((prompt) => (
+          {promptsWithCategoryName.map((prompt) => (
             <PromptCard key={prompt.id} prompt={prompt} />
           ))}
         </div>

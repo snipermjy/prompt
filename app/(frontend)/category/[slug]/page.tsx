@@ -52,6 +52,12 @@ export default async function CategoryPage({ params }: PageProps) {
   // 获取该分类下的提示词
   const prompts = await getPrompts(slug, 100);
   
+  // 为每个提示词添加中文分类名称
+  const promptsWithCategoryName = prompts.map(prompt => ({
+    ...prompt,
+    categoryName: category.name,
+  }));
+  
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* 面包屑导航 */}
@@ -75,9 +81,9 @@ export default async function CategoryPage({ params }: PageProps) {
       </div>
       
       {/* 提示词列表 */}
-      {prompts.length > 0 ? (
+      {promptsWithCategoryName.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {prompts.map((prompt) => (
+          {promptsWithCategoryName.map((prompt) => (
             <PromptCard key={prompt.id} prompt={prompt} />
           ))}
         </div>

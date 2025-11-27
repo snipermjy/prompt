@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { getPromptById, getRelatedPrompts, incrementViewCount } from '@/app/actions/prompts';
+import { getCategoryBySlug } from '@/app/actions/categories';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import PromptCard from '@/components/features/PromptCard';
 import { formatNumber } from '@/lib/utils/formatNumber';
@@ -62,8 +63,18 @@ export default async function PromptDetailPage({ params }: PageProps) {
     notFound();
   }
   
+  // 获取分类信息
+  const category = await getCategoryBySlug(prompt.category);
+  const categoryName = category?.name || prompt.category;
+  
   // 获取相关推荐
   const relatedPrompts = await getRelatedPrompts(id, prompt.category, 4);
+  
+  // 为相关推荐添加分类名称
+  const relatedPromptsWithCategoryName = relatedPrompts.map(p => ({
+    ...p,
+    categoryName: categoryName,
+  }));
   
   // 增加浏览量（异步执行，不阻塞页面渲染）
   incrementViewCount(id).catch(err => console.error('Failed to increment view count:', err));
@@ -78,7 +89,7 @@ export default async function PromptDetailPage({ params }: PageProps) {
       <BreadcrumbJsonLd
         items={[
           { name: '首页', url: siteUrl },
-          { name: prompt.category, url: `${siteUrl}/category/${prompt.category}` },
+          { name: categoryName, url: `${siteUrl}/category/${prompt.category}` },
           { name: prompt.title, url: promptUrl },
         ]}
       />
@@ -86,7 +97,7 @@ export default async function PromptDetailPage({ params }: PageProps) {
       {/* 面包屑导航 */}
       <Breadcrumb
         items={[
-          { label: prompt.category, href: `/category/${prompt.category}` },
+          { label: categoryName, href: `/category/${prompt.category}` },
           { label: prompt.title },
         ]}
       />
@@ -98,7 +109,7 @@ export default async function PromptDetailPage({ params }: PageProps) {
           <div className="flex items-start gap-2 flex-1">
             <h1 className="text-2xl font-bold text-gray-900">{prompt.title}</h1>
             <span className="inline-block px-2 py-1 bg-blue-50 text-blue-700 text-sm rounded flex-shrink-0">
-              {prompt.category}
+              {categoryName}
             </span>
           </div>
           
@@ -216,9 +227,9 @@ export default async function PromptDetailPage({ params }: PageProps) {
                 </svg>
                 <h2 className="text-base font-semibold text-gray-900">相关推荐</h2>
               </div>
-              {relatedPrompts.length > 0 ? (
+              {relatedPromptsWithCategoryName.length > 0 ? (
                 <div className="flex flex-col gap-3">
-                  {relatedPrompts.map((relatedPrompt) => (
+                  {relatedPromptsWithCategoryName.map((relatedPrompt) => (
                     <PromptCard key={relatedPrompt.id} prompt={relatedPrompt} compact />
                   ))}
                 </div>

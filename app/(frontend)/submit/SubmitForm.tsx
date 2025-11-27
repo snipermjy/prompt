@@ -3,10 +3,12 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSubmission } from '@/app/actions/submissions';
+import { checkDuplicates } from '@/app/actions/prompts';
 import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
 import Button from '@/components/ui/Button';
 import Modal, { ModalBody } from '@/components/ui/Modal';
+import DuplicateChecker from '@/components/ui/DuplicateChecker';
 import { validateEmail, validateUrl, validateLength, checkRateLimit } from '@/lib/utils/validation';
 
 /**
@@ -21,8 +23,11 @@ const MAX_DESCRIPTION_LENGTH = 200;
 export default function SubmitForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [duplicates, setDuplicates] = useState<any[]>([]);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   
   // 表单数据
   const [content, setContent] = useState('');
@@ -94,7 +99,31 @@ export default function SubmitForm() {
       setMessage({ type: 'error', text: '提交过于频繁，请稍后再试' });
       return;
     }
+
+    // 检查重复
+    setChecking(true);
+    setMessage(null);
+    try {
+      const duplicateResults = await checkDuplicates(content.trim());
+      setDuplicates(duplicateResults);
+      
+      if (duplicateResults.length > 0) {
+        setChecking(false);
+        setShowDuplicateDialog(true);
+        return;
+      }
+    } catch (error) {
+      console.error('检查重复失败:', error);
+      // 检查失败不阻止提交
+    } finally {
+      setChecking(false);
+    }
     
+    await submitForm();
+  };
+
+  // 实际提交
+  const submitForm = async () => {
     setLoading(true);
     setMessage(null);
     
@@ -129,8 +158,21 @@ export default function SubmitForm() {
     }
   };
 
+  // 继续提交（忽略重复警告）
   const handleContinueSubmit = () => {
     setShowSuccessModal(false);
+  };
+
+  // 忽略重复，继续提交
+  const handleIgnoreDuplicate = () => {
+    setShowDuplicateDialog(false);
+    submitForm();
+  };
+
+  // 取消提交
+  const handleCancelSubmit = () => {
+    setShowDuplicateDialog(false);
+    setDuplicates([]);
   };
 
   const handleBackHome = () => {
@@ -261,12 +303,22 @@ export default function SubmitForm() {
           type="submit" 
           variant="primary" 
           size="lg" 
-          loading={loading}
+          loading={loading || checking}
           disabled={!validation.isValid && touched.content}
         >
-          {loading ? '提交中...' : '提交审核'}
+          {checking ? '检查重复中...' : loading ? '提交中...' : '提交审核'}
         </Button>
       </div>
+
+      {/* 重复检查对话框 */}
+      {showDuplicateDialog && duplicates.length > 0 && (
+        <DuplicateChecker
+          duplicates={duplicates}
+          newContent={content}
+          onContinue={handleIgnoreDuplicate}
+          onCancel={handleCancelSubmit}
+        />
+      )}
 
       {/* 成功模态框 */}
       <Modal isOpen={showSuccessModal} onClose={() => setShowSuccessModal(false)}>

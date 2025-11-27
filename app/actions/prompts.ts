@@ -2,6 +2,7 @@
 
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import type { Prompt, CreatePromptInput, UpdatePromptInput } from '@/lib/types/database';
+import { generateContentHash, calculateSimilarity } from '@/lib/utils/similarity';
 
 /**
  * 获取提示词列表
@@ -325,6 +326,143 @@ export async function getRelatedPrompts(
   } catch (error) {
     console.error('Error in getRelatedPrompts:', error);
     return [];
+  }
+}
+
+/**
+ * 检查提示词重复
+ * 
+ * @param content - 提示词内容
+ * @param title - 提示词标题（可选）
+ * @returns 相似的提示词列表
+ */
+export async function checkDuplicates(
+  content: string,
+  title?: string
+): Promise<Array<Prompt & { similarity: number; method: string }>> {
+  try {
+    if (!content || content.trim().length < 20) {
+      return [];
+    }
+
+    const supabase = createAdminClient();
+    
+    // 生成内容hash
+    const contentHash = generateContentHash(content);
+    
+    // 第一步：精确匹配（通过hash）
+    const { data: exactMatches } = await supabase
+      .from('prompts')
+      .select('*')
+      .eq('status', 'published')
+      .eq('content_hash', contentHash);
+    
+    if (exactMatches && exactMatches.length > 0) {
+      return exactMatches.map(prompt => ({
+        ...prompt as Prompt,
+        similarity: 100,
+        method: 'exact',
+      }));
+    }
+
+    // 第二步：候选筛选（标题相似或内容前缀相似）
+    let candidates: Prompt[] = [];
+    
+    // 如果提供了标题，先查找标题相同或相似的
+    if (title) {
+      const { data: titleMatches } = await supabase
+        .from('prompts')
+        .select('*')
+        .eq('status', 'published')
+        .ilike('title', `%${title.trim()}%`);
+      
+      if (titleMatches) {
+        candidates.push(...(titleMatches as Prompt[]));
+      }
+    }
+    
+    // 如果候选项少于50个，再查询所有已发布的进行详细对比
+    if (candidates.length < 50) {
+      const { data: allPublished } = await supabase
+        .from('prompts')
+        .select('*')
+        .eq('status', 'published')
+        .order('view_count', { ascending: false })
+        .limit(1000); // 软限制，避免极端情况
+      
+      if (allPublished) {
+        // 合并候选项，去重
+        const candidateIds = new Set(candidates.map(c => c.id));
+        const newCandidates = (allPublished as Prompt[]).filter(
+          p => !candidateIds.has(p.id)
+        );
+        candidates.push(...newCandidates);
+      }
+    }
+
+    // 第三步：计算相似度
+    const results = candidates
+      .map(candidate => {
+        const result = calculateSimilarity(
+          content,
+          candidate.content,
+          title,
+          candidate.title
+        );
+        
+        return {
+          ...candidate,
+          similarity: result.similarity,
+          method: result.method,
+        };
+      })
+      .filter(item => item.similarity >= 80) // 只返回相似度>=80%的
+      .sort((a, b) => {
+        // 先按相似度排序
+        if (b.similarity !== a.similarity) {
+          return b.similarity - a.similarity;
+        }
+        // 相似度相同时按浏览量排序
+        return b.view_count - a.view_count;
+      });
+
+    return results;
+  } catch (error) {
+    console.error('Error in checkDuplicates:', error);
+    return [];
+  }
+}
+
+/**
+ * 创建提示词时自动生成hash
+ */
+export async function createPromptWithHash(input: CreatePromptInput): Promise<Prompt | null> {
+  try {
+    // 生成content_hash
+    const contentHash = generateContentHash(input.content);
+    
+    const dataWithHash = {
+      ...input,
+      content_hash: contentHash,
+    };
+
+    const supabase = createAdminClient();
+    
+    const { data, error } = await supabase
+      .from('prompts')
+      .insert([dataWithHash])
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Failed to create prompt:', error);
+      throw new Error(`Failed to create prompt: ${error.message}`);
+    }
+    
+    return data as Prompt;
+  } catch (error) {
+    console.error('Error in createPromptWithHash:', error);
+    throw error;
   }
 }
 

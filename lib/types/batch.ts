@@ -3,8 +3,14 @@
  */
 
 import type { AIGeneratedMetadata } from '@/lib/ai/generate';
+import type { Prompt } from './database';
 
 export type TaskStatus = 'pending' | 'processing' | 'success' | 'error';
+
+// 扩展AI生成结果，包含重复检查结果
+export interface BatchTaskResult extends AIGeneratedMetadata {
+  duplicates?: Array<Prompt & { similarity: number; method: string }>;
+}
 
 export interface BatchTask {
   id: string;
@@ -12,7 +18,7 @@ export interface BatchTask {
   status: TaskStatus;
   progress: number;
   progressText: string;
-  result: AIGeneratedMetadata | null;
+  result: BatchTaskResult | null;
   error: string | null;
   createdAt: number;
   updatedAt: number;

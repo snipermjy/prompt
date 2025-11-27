@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import type { BatchTask, BatchTaskStats } from '@/lib/types/batch';
 import type { Category } from '@/lib/types/database';
 import { getCategories } from '@/app/actions/categories';
-import { createPrompt } from '@/app/actions/prompts';
+import { createPrompt, checkDuplicates } from '@/app/actions/prompts';
 import Textarea from '@/components/ui/Textarea';
 import Button from '@/components/ui/Button';
+import { BatchDuplicateChecker } from '@/components/ui/DuplicateChecker';
 import TaskDetailModal from './TaskDetailModal';
 import TaskEditForm from './TaskEditForm';
 
@@ -23,6 +24,8 @@ export default function BatchAddPage() {
   const [tasks, setTasks] = useState<BatchTask[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [duplicateResults, setDuplicateResults] = useState<any[]>([]);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const tasksRef = useRef<BatchTask[]>([]);
 
   // 加载分类
@@ -137,11 +140,19 @@ export default function BatchAddPage() {
       }
 
       if (data.success && data.data) {
+        // AI生成成功后，检查重复
+        updateTask(taskId, {
+          progress: 80,
+          progressText: '检查重复中...',
+        });
+
+        const duplicates = await checkDuplicates(taskContent, data.data.title);
+        
         updateTask(taskId, {
           status: 'success',
           progress: 100,
-          progressText: '生成完成',
-          result: data.data,
+          progressText: duplicates.length > 0 ? `生成完成（发现${duplicates.length}个相似项）` : '生成完成',
+          result: { ...data.data, duplicates },
         });
       } else {
         throw new Error('AI返回数据格式错误');
@@ -234,16 +245,40 @@ export default function BatchAddPage() {
       return;
     }
 
-    // 显示确认对话框，列出要发布的标题
-    const titles = selectedTasks.map(t => `• ${t.result!.title}`).join('\n');
-    if (!confirm(`确定要发布以下 ${selectedTasks.length} 个提示词吗？\n\n${titles}`)) {
+    // 检查是否有重复项需要确认
+    const tasksWithDuplicates = selectedTasks.filter(
+      t => t.result?.duplicates && t.result.duplicates.length > 0
+    );
+
+    if (tasksWithDuplicates.length > 0) {
+      // 显示重复确认对话框
+      const duplicateResults = tasksWithDuplicates.map(t => ({
+        taskId: t.id,
+        content: t.content,
+        title: t.result?.title,
+        duplicates: t.result?.duplicates || [],
+        aiResult: t.result,
+      }));
+      setDuplicateResults(duplicateResults);
+      setShowDuplicateDialog(true);
+      return;
+    }
+
+    // 没有重复项，直接发布
+    await publishTasks(selectedTasks);
+  };
+
+  // 实际发布任务
+  const publishTasks = async (tasksToPublish: BatchTask[]) => {
+    const titles = tasksToPublish.map(t => `• ${t.result!.title}`).join('\n');
+    if (!confirm(`确定要发布以下 ${tasksToPublish.length} 个提示词吗？\n\n${titles}`)) {
       return;
     }
 
     let published = 0;
     let failed = 0;
 
-    for (const task of selectedTasks) {
+    for (const task of tasksToPublish) {
       if (!task.result) continue;
 
       try {
@@ -469,6 +504,58 @@ export default function BatchAddPage() {
           onClose={() => setSelectedTaskId(null)}
         />
       )}
+
+      {/* 批量重复检查对话框 */}
+      {showDuplicateDialog && duplicateResults.length > 0 && (
+        <BatchDuplicateChecker
+          results={duplicateResults}
+          onResolve={(taskId, action) => {
+            if (action === 'skip') {
+              // 取消选中
+              updateTask(taskId, { selected: false });
+            }
+            // 从待处理列表中移除
+            setDuplicateResults(prev => prev.filter(r => r.taskId !== taskId));
+            // 如果没有待处理的了，关闭对话框
+            if (duplicateResults.length <= 1) {
+              setShowDuplicateDialog(false);
+              // 发布剩余的无重复任务
+              const remainingTasks = tasks.filter(
+                t => t.status === 'success' && 
+                t.selected && 
+                (!t.result?.duplicates || t.result.duplicates.length === 0)
+              );
+              if (remainingTasks.length > 0) {
+                publishTasks(remainingTasks);
+              }
+            }
+          }}
+          onResolveAll={(action) => {
+            if (action === 'skip') {
+              // 取消所有有重复的任务的选中状态
+              duplicateResults.forEach(r => {
+                updateTask(r.taskId, { selected: false });
+              });
+            }
+            setShowDuplicateDialog(false);
+            setDuplicateResults([]);
+            
+            // 发布剩余的任务
+            const remainingTasks = tasks.filter(
+              t => t.status === 'success' && 
+              t.selected && 
+              (action === 'add' || !t.result?.duplicates || t.result.duplicates.length === 0)
+            );
+            if (remainingTasks.length > 0) {
+              publishTasks(remainingTasks);
+            }
+          }}
+          onClose={() => {
+            setShowDuplicateDialog(false);
+            setDuplicateResults([]);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -503,6 +590,8 @@ function TaskCard({
         return 'border-green-200 bg-green-50';
       case 'error':
         return 'border-red-200 bg-red-50';
+      default:
+        return 'border-gray-200 bg-gray-50';
     }
   };
 
@@ -532,6 +621,8 @@ function TaskCard({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         );
+      default:
+        return null;
     }
   };
 
@@ -641,3 +732,5 @@ function TaskCard({
     </div>
   );
 }
+
+

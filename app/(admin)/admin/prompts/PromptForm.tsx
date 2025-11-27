@@ -2,11 +2,12 @@
 
 import { useState, useEffect, KeyboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { createPrompt, updatePrompt } from '@/app/actions/prompts';
+import { createPrompt, updatePrompt, checkDuplicates } from '@/app/actions/prompts';
 import type { Prompt, Category, CreatePromptInput, Language, PromptStatus } from '@/lib/types/database';
 import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
 import Button from '@/components/ui/Button';
+import DuplicateChecker from '@/components/ui/DuplicateChecker';
 import { commonAIModels } from '@/lib/config/site';
 
 /**
@@ -25,6 +26,9 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
   const [aiProgress, setAiProgress] = useState(0);
   const [aiProgressText, setAiProgressText] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [duplicates, setDuplicates] = useState<any[]>([]);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
 
   // 从 sessionStorage 读取转换的提交数据（如果有）
   const [convertedData, setConvertedData] = useState<any>(null);
@@ -236,6 +240,25 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
     }
   };
 
+  // 检查重复
+  const handleCheckDuplicates = async () => {
+    if (!content.trim() || content.trim().length < 20) {
+      return;
+    }
+
+    setChecking(true);
+    try {
+      const results = await checkDuplicates(content.trim(), title.trim());
+      setDuplicates(results);
+      return results;
+    } catch (error) {
+      console.error('检查重复失败:', error);
+      return [];
+    } finally {
+      setChecking(false);
+    }
+  };
+
   // 提交表单
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -245,6 +268,22 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
       return;
     }
 
+    // 编辑模式不检查重复
+    if (!initialData) {
+      // 检查重复
+      setMessage(null);
+      const duplicateResults = await handleCheckDuplicates();
+      if (duplicateResults && duplicateResults.length > 0) {
+        setShowDuplicateDialog(true);
+        return;
+      }
+    }
+
+    await submitForm();
+  };
+
+  // 实际提交
+  const submitForm = async () => {
     setLoading(true);
     setMessage(null);
 
@@ -334,6 +373,18 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
     } finally {
       setLoading(false);
     }
+  };
+
+  // 继续添加（忽略重复警告）
+  const handleContinueAdd = () => {
+    setShowDuplicateDialog(false);
+    submitForm();
+  };
+
+  // 取消添加
+  const handleCancelAdd = () => {
+    setShowDuplicateDialog(false);
+    setDuplicates([]);
   };
 
   return (
@@ -629,14 +680,25 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
           type="button"
           variant="secondary"
           onClick={() => router.back()}
-          disabled={loading}
+          disabled={loading || checking}
         >
           取消
         </Button>
-        <Button type="submit" variant="primary" size="lg" loading={loading}>
-          {loading ? '保存中...' : initialData ? '保存修改' : '添加提示词'}
+        <Button type="submit" variant="primary" size="lg" loading={loading || checking}>
+          {checking ? '检查重复中...' : loading ? '保存中...' : initialData ? '保存修改' : '添加提示词'}
         </Button>
       </div>
+
+      {/* 重复检查对话框 */}
+      {showDuplicateDialog && duplicates.length > 0 && (
+        <DuplicateChecker
+          duplicates={duplicates}
+          newContent={content}
+          newTitle={title}
+          onContinue={handleContinueAdd}
+          onCancel={handleCancelAdd}
+        />
+      )}
     </form>
   );
 }
