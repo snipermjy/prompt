@@ -561,7 +561,7 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
             <label className="block text-sm font-medium text-gray-700 mb-2">语言</label>
             <select
               value={language}
-              onChange={(e) => setLanguage(e.target.value)}
+              onChange={(e) => setLanguage(e.target.value as Language)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
             >
               <option value="zh-CN">🇨🇳 中文</option>
@@ -576,7 +576,7 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
             <label className="block text-sm font-medium text-gray-700 mb-2">状态</label>
             <select
               value={status}
-              onChange={(e) => setStatus(e.target.value)}
+              onChange={(e) => setStatus(e.target.value as PromptStatus)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
             >
               <option value="draft">草稿</option>
