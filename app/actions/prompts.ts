@@ -11,16 +11,18 @@ import { generateContentHash, calculateSimilarity } from '@/lib/utils/similarity
  * @param limit - 返回数量限制
  * @param offset - 偏移量（用于分页）
  * @param includeAll - 是否包含所有状态（管理后台使用，默认false只返回已发布）
+ * @param useStaticClient - 是否使用静态客户端（用于 sitemap 等静态生成场景，默认false）
  * @returns 提示词数组
  */
 export async function getPrompts(
   category?: string,
   limit: number = 20,
   offset: number = 0,
-  includeAll: boolean = false
+  includeAll: boolean = false,
+  useStaticClient: boolean = false
 ): Promise<Prompt[]> {
   try {
-    const supabase = includeAll ? createAdminClient() : await createClient();
+    const supabase = (includeAll || useStaticClient) ? createAdminClient() : await createClient();
     
     let query = supabase
       .from('prompts')

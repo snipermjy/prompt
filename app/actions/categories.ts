@@ -6,11 +6,13 @@ import type { Category } from '@/lib/types/database';
 /**
  * 获取所有分类
  * 
+ * @param useStaticClient - 是否使用静态客户端（用于 sitemap 等静态生成场景，默认false）
  * @returns 分类数组
  */
-export async function getCategories(): Promise<Category[]> {
+export async function getCategories(useStaticClient: boolean = false): Promise<Category[]> {
   try {
-    const supabase = await createClient();
+    const { createAdminClient } = await import('@/lib/supabase/server');
+    const supabase = useStaticClient ? createAdminClient() : await createClient();
     
     const { data, error } = await supabase
       .from('categories')

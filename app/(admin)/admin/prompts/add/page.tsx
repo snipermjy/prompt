@@ -6,6 +6,9 @@ import PromptForm from '../PromptForm';
  * 添加提示词页面
  */
 
+// 管理页面需要动态渲染
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
   title: '添加提示词 - 管理后台',
   description: '添加新的AI提示词',

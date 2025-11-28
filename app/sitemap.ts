@@ -2,6 +2,10 @@ import { MetadataRoute } from 'next';
 import { getPrompts } from '@/app/actions/prompts';
 import { getCategories } from '@/app/actions/categories';
 
+// 强制静态生成，避免使用 cookies
+export const dynamic = 'force-static';
+export const revalidate = 3600; // 每小时重新生成一次
+
 /**
  * 动态生成网站地图
  * 包含所有提示词和分类页面
@@ -9,10 +13,10 @@ import { getCategories } from '@/app/actions/categories';
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
   
-  // 获取所有提示词和分类
+  // 获取所有提示词和分类（使用静态客户端，不依赖 cookies）
   const [prompts, categories] = await Promise.all([
-    getPrompts(undefined, 1000),
-    getCategories(),
+    getPrompts(undefined, 1000, 0, false, true),
+    getCategories(true),
   ]);
   
   // 静态页面
