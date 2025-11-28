@@ -61,7 +61,12 @@ export function ArticleJsonLd({ prompt, url }: ArticleJsonLdProps) {
       '@type': 'Organization',
       name: 'AI提示词库',
     },
-    keywords: [...prompt.tags, ...prompt.target_ai, prompt.category].join(', '),
+    keywords: [
+      ...prompt.tags,
+      ...(prompt.prompt_type || []),
+      ...(prompt.use_cases || []),
+      prompt.category
+    ].join(', '),
     articleSection: prompt.category,
     inLanguage: prompt.language,
     url: url,

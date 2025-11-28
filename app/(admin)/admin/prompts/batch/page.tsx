@@ -9,11 +9,20 @@ import { createPrompt, checkDuplicates } from '@/app/actions/prompts';
 import Textarea from '@/components/ui/Textarea';
 import Button from '@/components/ui/Button';
 import { BatchDuplicateChecker } from '@/components/ui/DuplicateChecker';
+import DuplicateChecker from '@/components/ui/DuplicateChecker';
 import TaskDetailModal from './TaskDetailModal';
 import TaskEditForm from './TaskEditForm';
 
 const MAX_CONCURRENT = 10; // 最大并发数
 const STORAGE_KEY = 'batch_tasks';
+const DEBUG = process.env.NODE_ENV === 'development'; // 开发环境启用调试日志
+
+// 调试日志辅助函数
+const debugLog = (...args: any[]) => {
+  if (DEBUG) {
+    console.log(...args);
+  }
+};
 
 /**
  * 批量添加提示词页面
@@ -26,7 +35,10 @@ export default function BatchAddPage() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [duplicateResults, setDuplicateResults] = useState<any[]>([]);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [singleDuplicateTask, setSingleDuplicateTask] = useState<BatchTask | null>(null);
   const tasksRef = useRef<BatchTask[]>([]);
+  const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
+  const timeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   // 加载分类
   useEffect(() => {
@@ -53,6 +65,25 @@ export default function BatchAddPage() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
     }
   }, [tasks]);
+
+  // 组件卸载时清理所有超时和请求
+  useEffect(() => {
+    return () => {
+      // 取消所有进行中的请求
+      abortControllersRef.current.forEach((controller) => {
+        controller.abort();
+      });
+      abortControllersRef.current.clear();
+      
+      // 清理所有超时
+      timeoutsRef.current.forEach((timeout) => {
+        clearTimeout(timeout);
+      });
+      timeoutsRef.current.clear();
+      
+      debugLog('批量处理页面卸载，已清理所有资源');
+    };
+  }, []);
 
   // 计算统计信息
   const stats: BatchTaskStats = {
@@ -96,8 +127,8 @@ export default function BatchAddPage() {
     processTask(newTask.id, newTask.content);
   };
 
-  // 处理单个任务
-  const processTask = async (taskId: string, taskContent?: string) => {
+  // 处理单个任务（跳过重复检测，直接AI分析）
+  const processTaskWithAI = async (taskId: string, taskContent?: string) => {
     // 如果没有传content，从ref获取
     if (!taskContent) {
       const task = tasksRef.current.find(t => t.id === taskId);
@@ -115,17 +146,56 @@ export default function BatchAddPage() {
       progressText: '正在连接AI服务...',
     });
 
+    // 清理旧的controller和timeout
+    const oldController = abortControllersRef.current.get(taskId);
+    if (oldController) {
+      oldController.abort();
+      abortControllersRef.current.delete(taskId);
+    }
+    const oldTimeout = timeoutsRef.current.get(taskId);
+    if (oldTimeout) {
+      clearTimeout(oldTimeout);
+      timeoutsRef.current.delete(taskId);
+    }
+
+    // 使用 AbortController 来支持取消请求
+    const abortController = new AbortController();
+    abortControllersRef.current.set(taskId, abortController);
+    let isTimedOut = false;
+
     try {
+      // 设置超时（30秒）- 缩短超时时间以便快速发现问题
+      debugLog(`[${taskId}] 设置30秒超时计时器 (processTaskWithAI)`);
+      const startTime = Date.now();
+      const timeoutId = setTimeout(() => {
+        const elapsed = Date.now() - startTime;
+        debugLog(`[${taskId}] ⏰ 超时触发！已等待 ${elapsed}ms`);
+        isTimedOut = true;
+        abortController.abort(); // 取消请求
+        abortControllersRef.current.delete(taskId);
+        timeoutsRef.current.delete(taskId);
+        updateTask(taskId, {
+          status: 'error',
+          progress: 0,
+          progressText: '处理超时',
+          error: 'AI处理超时（30秒），请重试或检查网络连接。如果持续超时，可能是AI服务繁忙。',
+        });
+      }, 30000); // 改为30秒
+      
+      timeoutsRef.current.set(taskId, timeoutId);
+
       // 调用AI生成
       updateTask(taskId, {
         progress: 30,
         progressText: '正在分析内容...',
       });
 
+      debugLog(`[${taskId}] 开始fetch请求 (processTaskWithAI)...`);
       const response = await fetch('/api/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: taskContent }),
+        signal: abortController.signal, // 添加取消信号
       });
 
       updateTask(taskId, {
@@ -136,7 +206,173 @@ export default function BatchAddPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'AI生成失败');
+        throw new Error(data.error || `AI生成失败 (HTTP ${response.status})`);
+      }
+
+      if (data.success && data.data) {
+        // 清理timeout和controller
+        const timeoutId = timeoutsRef.current.get(taskId);
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutsRef.current.delete(taskId);
+        }
+        abortControllersRef.current.delete(taskId);
+        
+        updateTask(taskId, {
+          status: 'success',
+          progress: 100,
+          progressText: '生成完成',
+          result: { ...data.data, duplicates: [] },
+        });
+      } else {
+        throw new Error('AI返回数据格式错误');
+      }
+    } catch (error) {
+      // 清理timeout和controller
+      const timeoutId = timeoutsRef.current.get(taskId);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutsRef.current.delete(taskId);
+      }
+      abortControllersRef.current.delete(taskId);
+      
+      // 如果是超时导致的取消，不需要再次更新状态
+      if (isTimedOut) {
+        return;
+      }
+      
+      // 如果是用户取消
+      if (error instanceof Error && error.name === 'AbortError') {
+        updateTask(taskId, {
+          status: 'error',
+          progress: 0,
+          progressText: '已取消',
+          error: '请求已被取消',
+        });
+        return;
+      }
+      
+      const errorMessage = error instanceof Error ? error.message : '未知错误';
+      console.error('批量处理错误:', errorMessage, error);
+      
+      updateTask(taskId, {
+        status: 'error',
+        progress: 0,
+        progressText: '生成失败',
+        error: errorMessage,
+      });
+    }
+  };
+
+  // 处理单个任务（包含重复检测）
+  const processTask = async (taskId: string, taskContent?: string) => {
+    // 如果没有传content，从ref获取
+    if (!taskContent) {
+      const task = tasksRef.current.find(t => t.id === taskId);
+      if (!task) {
+        console.error('Task not found:', taskId);
+        return;
+      }
+      taskContent = task.content;
+    }
+
+    // 更新状态为处理中
+    updateTask(taskId, {
+      status: 'processing',
+      progress: 5,
+      progressText: '检查内容重复...',
+    });
+
+    // 清理旧的controller和timeout
+    const oldController = abortControllersRef.current.get(taskId);
+    if (oldController) {
+      oldController.abort();
+      abortControllersRef.current.delete(taskId);
+    }
+    const oldTimeout = timeoutsRef.current.get(taskId);
+    if (oldTimeout) {
+      clearTimeout(oldTimeout);
+      timeoutsRef.current.delete(taskId);
+    }
+
+    // 使用 AbortController 来支持取消请求
+    const abortController = new AbortController();
+    abortControllersRef.current.set(taskId, abortController);
+    let isTimedOut = false;
+    
+    try {
+      // 第一步：先检查重复
+      const duplicates = await checkDuplicates(taskContent);
+      
+      if (duplicates.length > 0) {
+        // 发现重复，标记为待确认状态
+        updateTask(taskId, {
+          status: 'success',
+          progress: 100,
+          progressText: `发现${duplicates.length}个重复项，等待确认`,
+          result: {
+            title: '（待确认 - 发现重复）',
+            description: '',
+            category: '',
+            tags: [],
+            prompt_type: [],
+            use_cases: [],
+            language: 'zh-CN',
+            duplicates: duplicates,
+          },
+        });
+        return;
+      }
+
+      // 没有重复，继续AI分析
+      updateTask(taskId, {
+        progress: 10,
+        progressText: '正在连接AI服务...',
+      });
+
+      // 设置超时（30秒）- 缩短超时时间以便快速发现问题
+      debugLog(`[${taskId}] 设置30秒超时计时器 (processTask)`);
+      const startTime = Date.now();
+      const timeoutId = setTimeout(() => {
+        const elapsed = Date.now() - startTime;
+        debugLog(`[${taskId}] ⏰ 超时触发！已等待 ${elapsed}ms`);
+        isTimedOut = true;
+        abortController.abort(); // 取消请求
+        abortControllersRef.current.delete(taskId);
+        timeoutsRef.current.delete(taskId);
+        updateTask(taskId, {
+          status: 'error',
+          progress: 0,
+          progressText: '处理超时',
+          error: 'AI处理超时（30秒），请重试或检查网络连接。如果持续超时，可能是AI服务繁忙。',
+        });
+      }, 30000); // 改为30秒
+      
+      timeoutsRef.current.set(taskId, timeoutId);
+
+      // 调用AI生成
+      updateTask(taskId, {
+        progress: 30,
+        progressText: '正在分析内容...',
+      });
+
+      debugLog(`[${taskId}] 开始fetch请求 (processTask)...`);
+      const response = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: taskContent }),
+        signal: abortController.signal, // 添加取消信号
+      });
+
+      updateTask(taskId, {
+        progress: 60,
+        progressText: '正在处理结果...',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || `AI生成失败 (HTTP ${response.status})`);
       }
 
       if (data.success && data.data) {
@@ -148,6 +384,14 @@ export default function BatchAddPage() {
 
         const duplicates = await checkDuplicates(taskContent, data.data.title);
         
+        // 清理timeout和controller
+        const tid = timeoutsRef.current.get(taskId);
+        if (tid) {
+          clearTimeout(tid);
+          timeoutsRef.current.delete(taskId);
+        }
+        abortControllersRef.current.delete(taskId);
+        
         updateTask(taskId, {
           status: 'success',
           progress: 100,
@@ -158,11 +402,38 @@ export default function BatchAddPage() {
         throw new Error('AI返回数据格式错误');
       }
     } catch (error) {
+      // 清理timeout和controller
+      const tid = timeoutsRef.current.get(taskId);
+      if (tid) {
+        clearTimeout(tid);
+        timeoutsRef.current.delete(taskId);
+      }
+      abortControllersRef.current.delete(taskId);
+      
+      // 如果是超时导致的取消，不需要再次更新状态
+      if (isTimedOut) {
+        return;
+      }
+      
+      // 如果是用户取消
+      if (error instanceof Error && error.name === 'AbortError') {
+        updateTask(taskId, {
+          status: 'error',
+          progress: 0,
+          progressText: '已取消',
+          error: '请求已被取消',
+        });
+        return;
+      }
+      
+      const errorMessage = error instanceof Error ? error.message : '未知错误';
+      console.error('批量处理错误:', errorMessage, error);
+      
       updateTask(taskId, {
         status: 'error',
         progress: 0,
         progressText: '生成失败',
-        error: error instanceof Error ? error.message : '未知错误',
+        error: errorMessage,
       });
     }
   };
@@ -275,25 +546,63 @@ export default function BatchAddPage() {
       return;
     }
 
+    // 统一匹配分类
+    const { batchMatchCategories } = await import('@/lib/utils/categorySimilarity');
+    const newCategories = tasksToPublish
+      .map(t => t.result?.category)
+      .filter((c): c is string => !!c);
+    
+    const categoryMatches = batchMatchCategories(newCategories, categories, 90);
+    
     let published = 0;
     let failed = 0;
+    const newCategoriesCreated = new Map<string, string>(); // 新分类名 -> slug
 
     for (const task of tasksToPublish) {
       if (!task.result) continue;
 
       try {
-        // 查找匹配的分类
-        const category = categories.find(
-          c => c.slug === task.result!.category || c.name === task.result!.category
-        );
+        const aiCategory = task.result.category;
+        const matchResult = categoryMatches.get(aiCategory);
+        
+        let categorySlug: string;
+        
+        if (matchResult?.matchedCategory) {
+          // 使用匹配到的现有分类
+          categorySlug = matchResult.matchedCategory.slug;
+        } else if (newCategoriesCreated.has(aiCategory)) {
+          // 使用已创建的新分类
+          categorySlug = newCategoriesCreated.get(aiCategory)!;
+        } else {
+          // 需要创建新分类
+          const aiSlug = task.result.category_slug || aiCategory.toLowerCase().replace(/\s+/g, '-');
+          const aiDescription = task.result.category_description || `${aiCategory}相关的提示词`;
+          const aiIcon = task.result.category_icon || '📁';
+          
+          // 自动创建新分类
+          const { createCategory } = await import('@/app/actions/categories');
+          const newCategory = await createCategory(aiCategory, aiSlug, aiDescription, aiIcon);
+          
+          if (newCategory) {
+            categorySlug = newCategory.slug;
+            // 更新本地分类列表
+            categories.push(newCategory);
+          } else {
+            // 创建失败，使用AI生成的slug
+            categorySlug = aiSlug;
+          }
+          
+          newCategoriesCreated.set(aiCategory, categorySlug);
+        }
 
         await createPrompt({
           title: task.result.title,
           content: task.content,
           description: task.result.description,
-          category: category?.slug || categories[0]?.slug || 'other',
+          category: categorySlug,
           tags: task.result.tags,
-          target_ai: task.result.target_ai,
+          prompt_type: task.result.prompt_type || [],
+          use_cases: task.result.use_cases || [],
           difficulty: 'beginner',
           language: task.result.language,
           status: 'published',
@@ -314,16 +623,32 @@ export default function BatchAddPage() {
     }
 
     // 显示发布结果
+    let resultMessage = '';
+    
     if (published > 0 && failed === 0) {
-      const viewPrompts = confirm(`✅ 成功发布 ${published} 个提示词！\n\n点击"确定"查看已发布的提示词，点击"取消"继续添加`);
+      resultMessage = `✅ 成功发布 ${published} 个提示词！`;
+    } else if (published > 0 && failed > 0) {
+      resultMessage = `发布完成！\n✅ 成功: ${published} 个\n❌ 失败: ${failed} 个`;
+    } else {
+      resultMessage = `❌ 发布失败！所有任务都未能发布成功`;
+    }
+    
+    // 添加新分类信息
+    if (newCategoriesCreated.size > 0) {
+      const newCatList = Array.from(newCategoriesCreated.entries())
+        .map(([name, slug]) => `  • ${name} (${slug})`)
+        .join('\n');
+      resultMessage += `\n\n🆕 自动创建了 ${newCategoriesCreated.size} 个新分类：\n${newCatList}`;
+    }
+    
+    if (published > 0 && failed === 0) {
+      const viewPrompts = confirm(`${resultMessage}\n\n点击"确定"查看已发布的提示词，点击"取消"继续添加`);
       if (viewPrompts) {
         localStorage.removeItem(STORAGE_KEY);
         router.push('/admin/prompts');
       }
-    } else if (published > 0 && failed > 0) {
-      alert(`发布完成！\n✅ 成功: ${published} 个\n❌ 失败: ${failed} 个\n\n失败的任务已保留，可以重试`);
     } else {
-      alert(`❌ 发布失败！所有任务都未能发布成功`);
+      alert(resultMessage + (failed > 0 ? '\n\n失败的任务已保留，可以重试' : ''));
     }
   };
 
@@ -477,6 +802,7 @@ export default function BatchAddPage() {
                 onToggleSelect={handleToggleSelect}
                 onToggleEdit={handleToggleEdit}
                 onViewDetail={() => setSelectedTaskId(task.id)}
+                onViewDuplicate={() => setSingleDuplicateTask(task)}
               />
             )
           ))}
@@ -502,6 +828,34 @@ export default function BatchAddPage() {
           task={tasks.find(t => t.id === selectedTaskId)!}
           isOpen={!!selectedTaskId}
           onClose={() => setSelectedTaskId(null)}
+        />
+      )}
+
+      {/* 单个任务重复检测对话框 */}
+      {singleDuplicateTask && singleDuplicateTask.result?.duplicates && (
+        <DuplicateChecker
+          duplicates={singleDuplicateTask.result.duplicates}
+          newContent={singleDuplicateTask.content}
+          newTitle={singleDuplicateTask.result.title}
+          onContinue={() => {
+            // 用户选择继续添加，需要调用AI分析
+            setSingleDuplicateTask(null);
+            // 重新处理这个任务，强制AI分析
+            const taskId = singleDuplicateTask.id;
+            updateTask(taskId, {
+              status: 'pending',
+              progress: 0,
+              progressText: '等待AI分析...',
+              result: null,
+            });
+            // 调用AI分析（跳过重复检测）
+            processTaskWithAI(taskId, singleDuplicateTask.content);
+          }}
+          onCancel={() => {
+            // 用户取消，删除这个任务
+            handleDelete(singleDuplicateTask.id);
+            setSingleDuplicateTask(null);
+          }}
         />
       )}
 
@@ -571,6 +925,7 @@ function TaskCard({
   onToggleSelect,
   onToggleEdit,
   onViewDetail,
+  onViewDuplicate,
 }: {
   task: BatchTask;
   categories: Category[];
@@ -579,6 +934,7 @@ function TaskCard({
   onToggleSelect: (id: string) => void;
   onToggleEdit: (id: string) => void;
   onViewDetail: () => void;
+  onViewDuplicate: () => void;
 }) {
   const getStatusColor = () => {
     switch (task.status) {
@@ -650,7 +1006,14 @@ function TaskCard({
         <div className="flex-1 min-w-0">
           {/* 提示词内容 */}
           <div className="mb-3">
-            <p className="text-sm text-gray-700 line-clamp-2">{task.content}</p>
+            <details className="group">
+              <summary className="text-sm text-gray-700 line-clamp-2 cursor-pointer hover:text-blue-600 transition-colors">
+                {task.content}
+              </summary>
+              <div className="mt-2 p-3 bg-gray-50 rounded border border-gray-200 text-sm text-gray-700 whitespace-pre-wrap">
+                {task.content}
+              </div>
+            </details>
           </div>
 
           {/* 进度条 */}
@@ -688,9 +1051,20 @@ function TaskCard({
           )}
 
           {/* 错误信息 */}
-          {task.status === 'error' && task.error && (
-            <div className="mb-3">
-              <p className="text-sm text-red-700">{task.error}</p>
+          {task.status === 'error' && (
+            <div className="mb-3 p-3 bg-red-100 border border-red-300 rounded">
+              <div className="flex items-start gap-2">
+                <svg className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-red-800 mb-1">处理失败</p>
+                  <p className="text-sm text-red-700">{task.error || '未知错误'}</p>
+                  <p className="text-xs text-red-600 mt-2">
+                    💡 提示：点击"重试"按钮重新处理，或检查提示词内容是否符合要求（至少20字符）
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
@@ -698,26 +1072,53 @@ function TaskCard({
           <div className="flex items-center gap-2">
             {task.status === 'success' && (
               <>
-                <button
-                  onClick={onViewDetail}
-                  className="text-xs px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
-                >
-                  查看详情
-                </button>
-                <button
-                  onClick={() => onToggleEdit(task.id)}
-                  className="text-xs px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
-                >
-                  编辑
-                </button>
+                {task.result?.duplicates && task.result.duplicates.length > 0 ? (
+                  <button
+                    onClick={onViewDuplicate}
+                    className="text-xs px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors font-medium"
+                  >
+                    ⚠️ 查看重复 ({task.result.duplicates.length})
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={onViewDetail}
+                      className="text-xs px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                    >
+                      查看详情
+                    </button>
+                    <button
+                      onClick={() => onToggleEdit(task.id)}
+                      className="text-xs px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                    >
+                      编辑
+                    </button>
+                  </>
+                )}
               </>
+            )}
+            {task.status === 'processing' && (
+              <button
+                onClick={() => onRetry(task.id)}
+                className="text-xs px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors font-medium"
+              >
+                🔄 重新生成
+              </button>
             )}
             {task.status === 'error' && (
               <button
                 onClick={() => onRetry(task.id)}
-                className="text-xs px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                className="text-xs px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-medium"
               >
-                重试
+                🔄 重试
+              </button>
+            )}
+            {task.status === 'success' && (
+              <button
+                onClick={() => onRetry(task.id)}
+                className="text-xs px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors font-medium"
+              >
+                🔄 重新生成
               </button>
             )}
             <button

@@ -207,12 +207,21 @@ export async function incrementShareCount(id: string): Promise<void> {
  */
 export async function createPrompt(input: CreatePromptInput): Promise<Prompt | null> {
   try {
-    console.log('Creating prompt with data:', JSON.stringify(input, null, 2));
+    // 导入格式化函数
+    const { formatPromptContent } = await import('@/lib/utils/formatContent');
+    
+    // 格式化内容
+    const formattedInput = {
+      ...input,
+      content: formatPromptContent(input.content),
+    };
+    
+    console.log('Creating prompt with data:', JSON.stringify(formattedInput, null, 2));
     const supabase = createAdminClient();
     
     const { data, error } = await supabase
       .from('prompts')
-      .insert([input])
+      .insert([formattedInput])
       .select()
       .single();
     
@@ -246,11 +255,19 @@ export async function updatePrompt(
   input: UpdatePromptInput
 ): Promise<Prompt | null> {
   try {
+    // 导入格式化函数
+    const { formatPromptContent } = await import('@/lib/utils/formatContent');
+    
+    // 如果更新了内容，格式化它
+    const formattedInput = input.content
+      ? { ...input, content: formatPromptContent(input.content) }
+      : input;
+    
     const supabase = createAdminClient();
     
     const { data, error } = await supabase
       .from('prompts')
-      .update(input)
+      .update(formattedInput)
       .eq('id', id)
       .select()
       .single();

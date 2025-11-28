@@ -10,8 +10,8 @@ import EmptyState from '@/components/ui/EmptyState';
  * 展示特定分类下的所有提示词
  */
 
-// ISR: 每10分钟重新生成页面
-export const revalidate = 600;
+// 动态渲染，实时更新
+export const dynamic = 'force-dynamic';
 
 interface PageProps {
   params: Promise<{

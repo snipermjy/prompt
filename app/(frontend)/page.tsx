@@ -10,8 +10,8 @@ import { WebsiteJsonLd } from '@/components/seo/JsonLd';
  * 展示分类导航和最新提示词列表
  */
 
-// ISR: 每5分钟重新生成页面
-export const revalidate = 300;
+// 动态渲染，实时更新
+export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'AI提示词库 - 精选优质AI提示词',
@@ -28,6 +28,9 @@ export default async function HomePage() {
       getCategoriesWithCount(),
       getPrompts(undefined, 20),
     ]);
+    
+    // 只显示有提示词的分类
+    categories = categories.filter(cat => cat.prompt_count > 0);
   } catch (error) {
     console.error('Failed to load data:', error);
     // 如果数据库未配置，返回空数组，页面仍可显示

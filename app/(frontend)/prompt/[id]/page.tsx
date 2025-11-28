@@ -39,7 +39,7 @@ export async function generateMetadata({ params }: PageProps) {
   return {
     title: `${prompt.title} - AI提示词库`,
     description: prompt.description || prompt.title,
-    keywords: [prompt.title, prompt.category, ...prompt.tags, ...prompt.target_ai],
+    keywords: [prompt.title, prompt.category, ...prompt.tags, ...(prompt.prompt_type || []), ...(prompt.use_cases || [])],
     openGraph: {
       title: `${prompt.title} - AI提示词库`,
       description: prompt.description || prompt.title,
@@ -113,20 +113,8 @@ export default async function PromptDetailPage({ params }: PageProps) {
             </span>
           </div>
           
-          {/* 适用AI模型 + 统计信息 */}
+          {/* 统计信息 */}
           <div className="flex items-center gap-4 flex-shrink-0">
-            {/* 适用AI模型 */}
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-gray-600">适用：</span>
-              <div className="flex gap-1">
-                {prompt.target_ai.slice(0, 3).map((ai, index) => (
-                  <span key={index} className="px-2 py-0.5 bg-purple-50 text-purple-700 text-xs rounded">
-                    {ai}
-                  </span>
-                ))}
-              </div>
-            </div>
-            
             {/* 统计图标 - 带动画效果 */}
             <div className="flex items-center gap-3 text-gray-500">
               <div className="flex items-center gap-1" title="浏览量">
@@ -152,16 +140,50 @@ export default async function PromptDetailPage({ params }: PageProps) {
           </div>
         </div>
         
-        {/* 语言、标签 */}
-        <div className="flex flex-wrap items-center gap-2 mb-3 pb-3 border-b border-gray-100">
-          <span className="inline-block px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded">
-            {language.flag} {language.label}
-          </span>
-          {prompt.tags.map((tag, index) => (
-            <span key={index} className="inline-block px-2 py-0.5 bg-purple-50 text-purple-700 text-xs rounded">
-              #{tag}
+        {/* 语言、提示词类型、使用场景、标签 */}
+        <div className="space-y-2 mb-3 pb-3 border-b border-gray-100">
+          {/* 语言 */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-block px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded">
+              {language.flag} {language.label}
             </span>
-          ))}
+          </div>
+          
+          {/* 提示词类型 */}
+          {prompt.prompt_type && prompt.prompt_type.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-gray-600 font-medium">类型：</span>
+              {prompt.prompt_type.map((type, index) => (
+                <span key={index} className="inline-block px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded">
+                  {type}
+                </span>
+              ))}
+            </div>
+          )}
+          
+          {/* 使用场景 */}
+          {prompt.use_cases && prompt.use_cases.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-gray-600 font-medium">场景：</span>
+              {prompt.use_cases.map((useCase, index) => (
+                <span key={index} className="inline-block px-2 py-0.5 bg-green-50 text-green-700 text-xs rounded">
+                  {useCase}
+                </span>
+              ))}
+            </div>
+          )}
+          
+          {/* 标签 */}
+          {prompt.tags && prompt.tags.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-gray-600 font-medium">标签：</span>
+              {prompt.tags.map((tag, index) => (
+                <span key={index} className="inline-block px-2 py-0.5 bg-purple-50 text-purple-700 text-xs rounded">
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         
         {/* 描述 */}

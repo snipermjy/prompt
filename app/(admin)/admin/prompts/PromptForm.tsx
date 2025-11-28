@@ -8,7 +8,6 @@ import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
 import Button from '@/components/ui/Button';
 import DuplicateChecker from '@/components/ui/DuplicateChecker';
-import { commonAIModels } from '@/lib/config/site';
 
 /**
  * 提示词表单组件（添加/编辑）
@@ -29,6 +28,8 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
   const [checking, setChecking] = useState(false);
   const [duplicates, setDuplicates] = useState<any[]>([]);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [showFormatPreview, setShowFormatPreview] = useState(false);
+  const [originalContent, setOriginalContent] = useState('');
 
   // 从 sessionStorage 读取转换的提交数据（如果有）
   const [convertedData, setConvertedData] = useState<any>(null);
@@ -39,7 +40,8 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
   const [description, setDescription] = useState(initialData?.description || convertedData?.description || '');
   const [category, setCategory] = useState(initialData?.category || '');
   const [tags, setTags] = useState<string[]>(initialData?.tags || []);
-  const [targetAI, setTargetAI] = useState<string[]>(initialData?.target_ai || []);
+  const [promptType, setPromptType] = useState<string[]>(initialData?.prompt_type || []);
+  const [useCases, setUseCases] = useState<string[]>(initialData?.use_cases || []);
   const [language, setLanguage] = useState(initialData?.language || 'zh-CN');
   const [status, setStatus] = useState(initialData?.status || 'published'); // 默认改为已发布
   const [authorName, setAuthorName] = useState(initialData?.author_name || convertedData?.author_name || '');
@@ -75,7 +77,8 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
 
   // 标签输入
   const [tagInput, setTagInput] = useState('');
-  const [aiModelInput, setAIModelInput] = useState('');
+  const [promptTypeInput, setPromptTypeInput] = useState('');
+  const [useCaseInput, setUseCaseInput] = useState('');
 
   // 处理标签输入
   const handleTagInput = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -89,14 +92,26 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
     }
   };
 
-  // 处理AI模型输入
-  const handleAIModelInput = (e: KeyboardEvent<HTMLInputElement>) => {
+  // 处理提示词类型输入
+  const handlePromptTypeInput = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
-      const value = aiModelInput.trim();
-      if (value && !targetAI.includes(value)) {
-        setTargetAI([...targetAI, value]);
-        setAIModelInput('');
+      const value = promptTypeInput.trim();
+      if (value && !promptType.includes(value)) {
+        setPromptType([...promptType, value]);
+        setPromptTypeInput('');
+      }
+    }
+  };
+
+  // 处理使用场景输入
+  const handleUseCaseInput = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const value = useCaseInput.trim();
+      if (value && !useCases.includes(value)) {
+        setUseCases([...useCases, value]);
+        setUseCaseInput('');
       }
     }
   };
@@ -106,16 +121,14 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
     setTags(tags.filter((t) => t !== tag));
   };
 
-  // 移除AI模型
-  const removeAIModel = (model: string) => {
-    setTargetAI(targetAI.filter((m) => m !== model));
+  // 移除提示词类型
+  const removePromptType = (type: string) => {
+    setPromptType(promptType.filter((t) => t !== type));
   };
 
-  // 添加AI模型（快速选择）
-  const addAIModel = (model: string) => {
-    if (!targetAI.includes(model)) {
-      setTargetAI([...targetAI, model]);
-    }
+  // 移除使用场景
+  const removeUseCase = (useCase: string) => {
+    setUseCases(useCases.filter((c) => c !== useCase));
   };
 
   // AI 自动生成
@@ -190,7 +203,7 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
 
         // 阶段 8: 匹配分类
         setAiProgressText('正在智能匹配分类...');
-        setAiProgress(90);
+        setAiProgress(85);
         await new Promise(resolve => setTimeout(resolve, 200));
         
         // 处理分类：如果是现有分类的 slug，直接使用；如果是新分类名，查找匹配或保留原值
@@ -209,11 +222,17 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
           }
         }
 
-        // 阶段 9: 识别适用 AI 模型
-        setAiProgressText('正在识别适用 AI 模型...');
+        // 阶段 9: 识别提示词类型
+        setAiProgressText('正在识别提示词类型...');
+        setAiProgress(90);
+        await new Promise(resolve => setTimeout(resolve, 200));
+        setPromptType(metadata.prompt_type || []);
+
+        // 阶段 10: 提取使用场景
+        setAiProgressText('正在提取使用场景...');
         setAiProgress(95);
         await new Promise(resolve => setTimeout(resolve, 200));
-        setTargetAI(metadata.target_ai || []);
+        setUseCases(metadata.use_cases || []);
         setLanguage(metadata.language || 'zh-CN');
 
         // 完成
@@ -293,7 +312,8 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
       console.log('内容长度:', content.length);
       console.log('分类:', category);
       console.log('标签:', tags);
-      console.log('AI模型:', targetAI);
+      console.log('提示词类型:', promptType);
+      console.log('使用场景:', useCases);
 
       const data: CreatePromptInput = {
         title: title.trim(),
@@ -301,7 +321,8 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
         description: description.trim() || undefined,
         category,
         tags,
-        target_ai: targetAI,
+        prompt_type: promptType,
+        use_cases: useCases,
         difficulty: 'beginner',
         language: language as Language,
         status: status as PromptStatus,
@@ -441,16 +462,86 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
         )}
 
         <div className="space-y-4">
-          {/* 内容 */}
-          <Textarea
-            label="提示词内容"
-            placeholder="请输入提示词内容...（至少 20 字符才能使用 AI 生成）"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={12}
-            required
-            maxLength={10000}
-          />
+          {/* 内容输入区域 */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                提示词内容 <span className="text-red-500">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!showFormatPreview) {
+                    setOriginalContent(content);
+                    setShowFormatPreview(true);
+                  } else {
+                    setShowFormatPreview(false);
+                  }
+                }}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                {showFormatPreview ? '隐藏预览' : '📝 格式化预览'}
+              </button>
+            </div>
+
+            {showFormatPreview ? (
+              /* 左右分栏预览 */
+              <div className="grid grid-cols-2 gap-4">
+                {/* 原始内容 */}
+                <div>
+                  <div className="text-xs text-gray-600 mb-1">原始内容</div>
+                  <Textarea
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    rows={12}
+                    required
+                    maxLength={10000}
+                    placeholder="请输入提示词内容..."
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setContent(originalContent);
+                      setShowFormatPreview(false);
+                    }}
+                    className="mt-2 text-xs text-gray-600 hover:text-gray-800"
+                  >
+                    ↶ 恢复原始内容
+                  </button>
+                </div>
+
+                {/* 格式化预览 */}
+                <div>
+                  <div className="text-xs text-gray-600 mb-1">格式化预览</div>
+                  <div className="border border-gray-300 rounded-lg p-3 bg-gray-50 h-[300px] overflow-y-auto">
+                    <pre className="whitespace-pre-wrap font-sans text-sm text-gray-700 leading-relaxed">
+                      {(() => {
+                        try {
+                          const { formatPromptContent } = require('@/lib/utils/formatContent');
+                          return formatPromptContent(content);
+                        } catch {
+                          return content;
+                        }
+                      })()}
+                    </pre>
+                  </div>
+                  <div className="mt-2 text-xs text-gray-500">
+                    💡 保存时会自动应用格式化
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* 普通输入 */
+              <Textarea
+                placeholder="请输入提示词内容...（至少 20 字符才能使用 AI 生成）"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                rows={12}
+                required
+                maxLength={10000}
+              />
+            )}
+          </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-sm text-blue-700">
@@ -549,23 +640,23 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
             </p>
           </div>
 
-          {/* 适用AI模型 */}
+          {/* 提示词类型 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              适用 AI 模型（按 Enter 或逗号添加，1-3个为佳）
+              提示词类型（按 Enter 或逗号添加）
             </label>
-            <div className="border border-gray-300 rounded-lg p-3 min-h-[100px] flex flex-wrap gap-2 items-start cursor-text"
-                 onClick={() => document.getElementById('aiModelInput')?.focus()}
+            <div className="border border-gray-300 rounded-lg p-3 min-h-[80px] flex flex-wrap gap-2 items-start cursor-text"
+                 onClick={() => document.getElementById('promptTypeInput')?.focus()}
             >
-              {targetAI.map((model, index) => (
+              {promptType.map((type, index) => (
                 <span
                   key={index}
                   className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 text-sm rounded"
                 >
-                  <span>{model}</span>
+                  <span>{type}</span>
                   <button
                     type="button"
-                    onClick={() => removeAIModel(model)}
+                    onClick={() => removePromptType(type)}
                     className="text-blue-400 hover:text-blue-600"
                   >
                     ×
@@ -573,30 +664,55 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
                 </span>
               ))}
               <input
-                id="aiModelInput"
+                id="promptTypeInput"
                 type="text"
-                placeholder="输入 AI 模型或从下方快速选择...（AI 会自动判断）"
-                value={aiModelInput}
-                onChange={(e) => setAIModelInput(e.target.value)}
-                onKeyDown={handleAIModelInput}
+                placeholder="例如：智能体、工作流、单次对话...（AI 会自动生成）"
+                value={promptTypeInput}
+                onChange={(e) => setPromptTypeInput(e.target.value)}
+                onKeyDown={handlePromptTypeInput}
                 className="flex-1 min-w-[200px] outline-none border-none text-sm"
               />
             </div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              <span className="text-xs text-gray-500">快速选择：</span>
-              {commonAIModels.map((model) => (
-                <button
-                  key={model}
-                  type="button"
-                  onClick={() => addAIModel(model)}
-                  className="px-2 py-0.5 bg-gray-100 hover:bg-blue-100 text-gray-700 hover:text-blue-700 text-xs rounded transition-colors"
+            <p className="mt-1 text-xs text-gray-500">
+              💡 AI 会根据内容自动判断类型：agent（智能体）、workflow（工作流）、single（单次对话）等
+            </p>
+          </div>
+
+          {/* 使用场景 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              使用场景（按 Enter 或逗号添加，3-5个为佳）
+            </label>
+            <div className="border border-gray-300 rounded-lg p-3 min-h-[80px] flex flex-wrap gap-2 items-start cursor-text"
+                 onClick={() => document.getElementById('useCaseInput')?.focus()}
+            >
+              {useCases.map((useCase, index) => (
+                <span
+                  key={index}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50 text-green-700 text-sm rounded"
                 >
-                  {model}
-                </button>
+                  <span>{useCase}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeUseCase(useCase)}
+                    className="text-green-400 hover:text-green-600"
+                  >
+                    ×
+                  </button>
+                </span>
               ))}
+              <input
+                id="useCaseInput"
+                type="text"
+                placeholder="例如：代码审查、文案写作、数据分析...（AI 会自动生成）"
+                value={useCaseInput}
+                onChange={(e) => setUseCaseInput(e.target.value)}
+                onKeyDown={handleUseCaseInput}
+                className="flex-1 min-w-[200px] outline-none border-none text-sm"
+              />
             </div>
             <p className="mt-1 text-xs text-gray-500">
-              💡 AI 会根据提示词内容智能判断适用的模型
+              💡 AI 会根据内容自动提取应用场景，完全开放不受限制
             </p>
           </div>
         </div>

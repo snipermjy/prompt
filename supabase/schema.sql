@@ -20,7 +20,8 @@ CREATE TABLE IF NOT EXISTS prompts (
   description TEXT,
   category VARCHAR(50) NOT NULL,
   tags TEXT[] DEFAULT '{}',
-  target_ai TEXT[] DEFAULT '{}',
+  prompt_type TEXT[] DEFAULT '{}',
+  use_cases TEXT[] DEFAULT '{}',
   difficulty VARCHAR(20) DEFAULT 'beginner',
   language VARCHAR(10) DEFAULT 'zh-CN',
   view_count INTEGER DEFAULT 0,
@@ -29,6 +30,8 @@ CREATE TABLE IF NOT EXISTS prompts (
   status VARCHAR(20) DEFAULT 'pending',
   author_name VARCHAR(100),
   author_link VARCHAR(500),
+  series_id UUID,
+  series_order INTEGER,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   
@@ -54,11 +57,22 @@ CREATE TABLE IF NOT EXISTS user_submissions (
   CONSTRAINT user_submissions_status_check CHECK (status IN ('pending', 'approved', 'rejected'))
 );
 
--- 4. 创建索引以提高查询性能
+-- 4. 创建系列提示词表
+CREATE TABLE IF NOT EXISTS prompt_series (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name VARCHAR(200) NOT NULL,
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 5. 创建索引以提高查询性能
 CREATE INDEX IF NOT EXISTS idx_prompts_category ON prompts(category);
 CREATE INDEX IF NOT EXISTS idx_prompts_status ON prompts(status);
 CREATE INDEX IF NOT EXISTS idx_prompts_created_at ON prompts(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_prompts_view_count ON prompts(view_count DESC);
+CREATE INDEX IF NOT EXISTS idx_prompts_series_id ON prompts(series_id);
+CREATE INDEX IF NOT EXISTS idx_prompts_prompt_type ON prompts USING GIN(prompt_type);
+CREATE INDEX IF NOT EXISTS idx_prompts_use_cases ON prompts USING GIN(use_cases);
 CREATE INDEX IF NOT EXISTS idx_categories_display_order ON categories(display_order);
 CREATE INDEX IF NOT EXISTS idx_user_submissions_status ON user_submissions(status);
 

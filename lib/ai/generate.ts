@@ -11,10 +11,19 @@ import type { Category } from '@/lib/types/database';
 export interface AIGeneratedMetadata {
   title: string;
   description: string;
-  category: string;
+  category: string; // AI自由判断的分类名称
+  category_slug?: string; // AI生成的slug（英文）
+  category_description?: string; // AI生成的分类描述
+  category_icon?: string; // AI生成的分类图标（emoji）
   tags: string[];
-  target_ai: string[];
+  prompt_type: string[];  // 提示词类型
+  use_cases: string[];    // 使用场景
   language: 'zh-CN' | 'en-US' | 'ja-JP' | 'other';
+  is_series?: boolean;    // 是否为系列提示词
+  series_info?: {         // 系列信息（如果是系列）
+    suggested_name: string;
+    order_hint: number;
+  };
 }
 
 /**
@@ -90,10 +99,12 @@ export async function generateMetadata(
   // 构建 AI 提示词
   const systemPrompt = `你是一个专业的 AI 提示词分析助手。你的任务是分析用户提供的提示词内容，并生成结构化的元数据。
 
+**重要原则：不要被预设限制，根据实际内容灵活生成**
+
 **分析要求：**
 
 1. **标题 (title)**：
-   - 20字以内，简洁准确
+   - 15字以内，简洁准确
    - 突出提示词的核心功能
    - 使用吸引人的措辞
 
@@ -103,31 +114,55 @@ export async function generateMetadata(
    - 突出亮点和适用场景
 
 3. **分类 (category)**：
-   - 优先从以下现有分类中选择最匹配的（返回 slug 值）：
-${categoryList}
-   - 如果现有分类都不合适，可以建议新分类名称（用中文，不要带 slug）
-   - 只返回一个分类
+   - **完全自由判断**最适合的分类名称（用中文）
+   - 不要被任何预设限制，根据提示词的实际内容和用途来判断
+   - 只返回一个分类名称
+   
+   同时生成：
+   - **category_slug**：分类的英文slug（小写，用连字符分隔），例如："提示词工程" → "prompt-engineering"
+   - **category_description**：一句话描述这个分类（20-30字），例如："专注于提示词优化、设计和工程化的工具和方法"
+   - **category_icon**：一个合适的emoji图标，例如："提示词工程" → "🔧"、"数据分析" → "📊"、"创意写作" → "✍️"
 
-4. **标签 (tags)**：
-   - 提取 3-5 个关键标签
-   - 标签要精准、简短（2-4个字）
-   - 可以是技术名词、应用场景、特性等
-   - 标签可以灵活创建，不局限于预设
+4. **提示词类型 (prompt_type)**：
+   根据内容判断，用中文描述类型，可能的类型包括但不限于：
+   - 智能体（角色扮演类）
+   - 单次对话（一次性问答）
+   - 工作流（多步骤流程）
+   - 系列提示词（分多个步骤）
+   - 模板（需要填空）
+   - 创意生成（文案、图像等）
+   - 分析类（数据、代码分析）
+   - 自动化（脚本、批处理）
+   - 或者你认为更准确的新类型（用中文）
+   
+   **重要：必须用中文返回**，例如：["智能体", "工作流"]
 
-5. **适用 AI 模型 (target_ai)**：
-   - 列出适合使用这个提示词的 AI 模型
-   - 常见模型：ChatGPT, Claude, Gemini, 文心一言, 通义千问, Midjourney, Stable Diffusion 等
-   - 可以根据提示词特点灵活判断
-   - 至少列出 1-3 个
+5. **使用场景 (use_cases)**：
+   自由描述这个提示词的应用场景，例如：
+   - 代码审查、代码重构、Bug修复
+   - 文案写作、营销文案、SEO优化
+   - 数据分析、可视化、报告生成
+   - 产品设计、用户研究、竞品分析
+   - 或者任何你认为准确的场景
+   
+   提取3-5个最相关的场景
 
-6. **语言 (language)**：
+6. **标签 (tags)**：
+   完全开放，提取最相关的关键词：
+   - 技术栈（Python, React, SQL）
+   - 领域（教育, 医疗, 金融）
+   - 特性（高效, 专业, 创意）
+   - 任何有助于搜索的关键词
+   
+   3-5个标签
+
+7. **语言 (language)**：
    - 根据提示词内容判断主要语言
    - 可选值：zh-CN（中文）、en-US（英文）、ja-JP（日文）、other（其他）
 
-**重要说明：**
-- 分类和标签都可以灵活生成，不要局限于预设
-- 如果提示词很专业或小众，可以创建新的分类和标签
-- 确保生成的内容准确、有用、易于理解
+8. **系列提示词判断 (is_series)**：
+   - 如果提示词明确提到"第一步"、"第二步"或"系列"等，设为 true
+   - 如果是独立的单个提示词，设为 false 或不返回此字段
 
 **返回格式要求：**
 请严格按照以下 JSON 格式返回，不要添加任何其他文字：
@@ -136,12 +171,19 @@ ${categoryList}
 {
   "title": "标题",
   "description": "描述内容",
-  "category": "分类slug或新分类名",
+  "category": "分类名称",
+  "category_slug": "分类名称的英文翻译",
+  "category_description": "分类描述",
+  "category_icon": "📁",
+  "prompt_type": ["提示词类型", "提示词类型"],
+  "use_cases": ["使用场景", "使用场景"],
   "tags": ["标签1", "标签2", "标签3"],
-  "target_ai": ["AI模型1", "AI模型2"],
-  "language": "zh-CN"
+  "language": "zh-CN",
+  "is_series": false
 }
 \`\`\`
+
+**注意：prompt_type 和 use_cases 必须用中文！**
 
 现在，请分析以下提示词内容：
 
@@ -181,7 +223,8 @@ ${content}
 
     // 确保数组字段存在
     result.tags = Array.isArray(result.tags) ? result.tags : [];
-    result.target_ai = Array.isArray(result.target_ai) ? result.target_ai : [];
+    result.prompt_type = Array.isArray(result.prompt_type) ? result.prompt_type : [];
+    result.use_cases = Array.isArray(result.use_cases) ? result.use_cases : [];
 
     // 验证分类：如果是现有分类的 slug，保持不变；如果是新分类，也保持
     // 不做强制匹配，让管理员自己决定

@@ -210,7 +210,8 @@ export async function approveAndPublish(
     title: string;
     category: string;
     tags: string[];
-    target_ai: string[];
+    prompt_type: string[];
+    use_cases: string[];
     language: string;
   }
 ): Promise<{ success: boolean; message: string }> {
@@ -240,7 +241,8 @@ export async function approveAndPublish(
         description: submission.description || null,
         category: promptData.category,
         tags: promptData.tags,
-        target_ai: promptData.target_ai,
+        prompt_type: promptData.prompt_type,
+        use_cases: promptData.use_cases,
         difficulty: 'beginner', // 默认难度为初级
         language: promptData.language,
         author_name: submission.author_name || null,

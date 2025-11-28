@@ -64,6 +64,8 @@ export const viewport = {
     { media: '(prefers-color-scheme: light)', color: '#3b82f6' },
     { media: '(prefers-color-scheme: dark)', color: '#1e40af' },
   ],
+  // 添加移动端 Web App 支持
+  mobileWebAppCapable: true,
 };
 
 export default function RootLayout({

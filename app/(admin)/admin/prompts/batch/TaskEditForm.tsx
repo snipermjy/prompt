@@ -6,7 +6,6 @@ import type { Category } from '@/lib/types/database';
 import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
 import Button from '@/components/ui/Button';
-import { commonAIModels } from '@/lib/config/site';
 
 interface TaskEditFormProps {
   task: BatchTask;
@@ -23,11 +22,13 @@ export default function TaskEditForm({ task, categories, onSave, onCancel }: Tas
   const [description, setDescription] = useState(task.result?.description || '');
   const [category, setCategory] = useState(task.result?.category || '');
   const [tags, setTags] = useState<string[]>(task.result?.tags || []);
-  const [targetAI, setTargetAI] = useState<string[]>(task.result?.target_ai || []);
+  const [promptType, setPromptType] = useState<string[]>(task.result?.prompt_type || []);
+  const [useCases, setUseCases] = useState<string[]>(task.result?.use_cases || []);
   const [language, setLanguage] = useState(task.result?.language || 'zh-CN');
   
   const [tagInput, setTagInput] = useState('');
-  const [aiModelInput, setAIModelInput] = useState('');
+  const [promptTypeInput, setPromptTypeInput] = useState('');
+  const [useCaseInput, setUseCaseInput] = useState('');
 
   // 处理标签输入
   const handleTagInput = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -41,14 +42,26 @@ export default function TaskEditForm({ task, categories, onSave, onCancel }: Tas
     }
   };
 
-  // 处理AI模型输入
-  const handleAIModelInput = (e: KeyboardEvent<HTMLInputElement>) => {
+  // 处理提示词类型输入
+  const handlePromptTypeInput = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
-      const value = aiModelInput.trim();
-      if (value && !targetAI.includes(value)) {
-        setTargetAI([...targetAI, value]);
-        setAIModelInput('');
+      const value = promptTypeInput.trim();
+      if (value && !promptType.includes(value)) {
+        setPromptType([...promptType, value]);
+        setPromptTypeInput('');
+      }
+    }
+  };
+
+  // 处理使用场景输入
+  const handleUseCaseInput = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const value = useCaseInput.trim();
+      if (value && !useCases.includes(value)) {
+        setUseCases([...useCases, value]);
+        setUseCaseInput('');
       }
     }
   };
@@ -57,14 +70,12 @@ export default function TaskEditForm({ task, categories, onSave, onCancel }: Tas
     setTags(tags.filter(t => t !== tag));
   };
 
-  const removeAIModel = (model: string) => {
-    setTargetAI(targetAI.filter(m => m !== model));
+  const removePromptType = (type: string) => {
+    setPromptType(promptType.filter(t => t !== type));
   };
 
-  const addAIModel = (model: string) => {
-    if (!targetAI.includes(model)) {
-      setTargetAI([...targetAI, model]);
-    }
+  const removeUseCase = (useCase: string) => {
+    setUseCases(useCases.filter(c => c !== useCase));
   };
 
   const handleSave = () => {
@@ -78,7 +89,8 @@ export default function TaskEditForm({ task, categories, onSave, onCancel }: Tas
       description: description.trim(),
       category,
       tags,
-      target_ai: targetAI,
+      prompt_type: promptType,
+      use_cases: useCases,
       language: language as 'zh-CN' | 'en-US' | 'ja-JP' | 'other',
     });
   };
@@ -155,22 +167,22 @@ export default function TaskEditForm({ task, categories, onSave, onCancel }: Tas
         />
       </div>
 
-      {/* 适用AI模型 */}
+      {/* 提示词类型 */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          适用AI模型
+          提示词类型
         </label>
         <div className="flex flex-wrap gap-2 mb-2">
-          {targetAI.map((model, index) => (
+          {promptType.map((type, index) => (
             <span
               key={index}
-              className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm"
+              className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
             >
-              {model}
+              {type}
               <button
                 type="button"
-                onClick={() => removeAIModel(model)}
-                className="hover:text-purple-600"
+                onClick={() => removePromptType(type)}
+                className="hover:text-blue-600"
               >
                 ×
               </button>
@@ -179,25 +191,44 @@ export default function TaskEditForm({ task, categories, onSave, onCancel }: Tas
         </div>
         <input
           type="text"
-          value={aiModelInput}
-          onChange={(e) => setAIModelInput(e.target.value)}
-          onKeyDown={handleAIModelInput}
-          placeholder="输入AI模型后按回车"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm mb-2"
+          value={promptTypeInput}
+          onChange={(e) => setPromptTypeInput(e.target.value)}
+          onKeyDown={handlePromptTypeInput}
+          placeholder="输入提示词类型后按回车（如：智能体、工作流）"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
         />
-        <div className="flex flex-wrap gap-2">
-          {commonAIModels.map((model) => (
-            <button
-              key={model}
-              type="button"
-              onClick={() => addAIModel(model)}
-              disabled={targetAI.includes(model)}
-              className="px-3 py-1 text-sm border border-gray-300 rounded-full hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+      </div>
+
+      {/* 使用场景 */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          使用场景
+        </label>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {useCases.map((useCase, index) => (
+            <span
+              key={index}
+              className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm"
             >
-              {model}
-            </button>
+              {useCase}
+              <button
+                type="button"
+                onClick={() => removeUseCase(useCase)}
+                className="hover:text-green-600"
+              >
+                ×
+              </button>
+            </span>
           ))}
         </div>
+        <input
+          type="text"
+          value={useCaseInput}
+          onChange={(e) => setUseCaseInput(e.target.value)}
+          onKeyDown={handleUseCaseInput}
+          placeholder="输入使用场景后按回车（如：代码审查、文案写作）"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+        />
       </div>
 
       {/* 语言 */}

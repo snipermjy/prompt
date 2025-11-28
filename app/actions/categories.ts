@@ -104,3 +104,69 @@ export async function getCategoriesWithCount(): Promise<(Category & { prompt_cou
   }
 }
 
+/**
+ * 创建新分类（AI自动生成）
+ * 
+ * @param name - 分类名称
+ * @param slug - 分类slug
+ * @param description - 分类描述
+ * @param icon - 分类图标（emoji）
+ * @returns 创建的分类
+ */
+export async function createCategory(
+  name: string,
+  slug: string,
+  description?: string,
+  icon?: string
+): Promise<Category | null> {
+  try {
+    const { createAdminClient } = await import('@/lib/supabase/server');
+    const supabase = createAdminClient();
+    
+    // 检查slug是否已存在
+    const { data: existing } = await supabase
+      .from('categories')
+      .select('id')
+      .eq('slug', slug)
+      .single();
+    
+    if (existing) {
+      console.log(`Category with slug "${slug}" already exists`);
+      return null;
+    }
+    
+    // 获取最大display_order
+    const { data: maxOrder } = await supabase
+      .from('categories')
+      .select('display_order')
+      .order('display_order', { ascending: false })
+      .limit(1)
+      .single();
+    
+    const displayOrder = (maxOrder?.display_order || 0) + 1;
+    
+    // 创建新分类
+    const { data, error } = await supabase
+      .from('categories')
+      .insert([{
+        name,
+        slug,
+        description: description || `${name}相关的提示词`,
+        icon: icon || '📁', // 使用AI生成的图标或默认图标
+        display_order: displayOrder,
+      }])
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Failed to create category:', error);
+      throw new Error(`Failed to create category: ${error.message}`);
+    }
+    
+    console.log(`✅ Created new category: ${name} (${slug})`);
+    return data as Category;
+  } catch (error) {
+    console.error('Error in createCategory:', error);
+    return null;
+  }
+}
