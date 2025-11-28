@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getPromptById, getRelatedPrompts, incrementViewCount } from '@/app/actions/prompts';
+import { getPromptById, getRelatedPrompts } from '@/app/actions/prompts';
 import { getCategoryBySlug } from '@/app/actions/categories';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import PromptCard from '@/components/features/PromptCard';
@@ -9,6 +9,7 @@ import { languageConfig } from '@/lib/config/site';
 import CopyButton from './CopyButton';
 import ShareButton from './ShareButton';
 import BackButton from './BackButton';
+import ViewTracker from './ViewTracker';
 import AnimatedNumber from '@/components/ui/AnimatedNumber';
 import { ArticleJsonLd, BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 
@@ -76,9 +77,6 @@ export default async function PromptDetailPage({ params }: PageProps) {
     categoryName: categoryName,
   }));
   
-  // 增加浏览量（异步执行，不阻塞页面渲染）
-  incrementViewCount(id).catch(err => console.error('Failed to increment view count:', err));
-  
   const language = languageConfig[prompt.language];
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
   const promptUrl = `${siteUrl}/prompt/${id}`;
@@ -94,13 +92,15 @@ export default async function PromptDetailPage({ params }: PageProps) {
         ]}
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* 面包屑导航 */}
-      <Breadcrumb
-        items={[
-          { label: categoryName, href: `/category/${prompt.category}` },
-          { label: prompt.title },
-        ]}
-      />
+        {/* 浏览量追踪组件 */}
+        <ViewTracker promptId={id} />
+        {/* 面包屑导航 */}
+        <Breadcrumb
+          items={[
+            { label: categoryName, href: `/category/${prompt.category}` },
+            { label: prompt.title },
+          ]}
+        />
       
       {/* 标题区域 */}
       <div className="bg-white rounded-lg border border-gray-200 p-5 mb-4">
@@ -233,9 +233,6 @@ export default async function PromptDetailPage({ params }: PageProps) {
             <pre className="whitespace-pre-wrap font-sans text-sm text-gray-700 leading-relaxed">
               {prompt.content}
             </pre>
-          </div>
-          <div className="text-xs text-gray-500 mt-2">
-            发布于 {formatDate(prompt.created_at)}
           </div>
         </div>
         

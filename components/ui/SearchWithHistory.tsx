@@ -47,11 +47,13 @@ export default function SearchWithHistory({
 
     addSearchTerm(sanitized);
     setShowDropdown(false);
+    setQuery(''); // 清空输入框，允许再次搜索
     
     if (onSearch) {
       onSearch(sanitized);
     } else {
-      router.push(`/search?q=${encodeURIComponent(sanitized)}`);
+      // 使用时间戳确保每次都是新的 URL，强制刷新
+      router.push(`/search?q=${encodeURIComponent(sanitized)}&t=${Date.now()}`);
     }
   }, [addSearchTerm, onSearch, router]);
 

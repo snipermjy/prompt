@@ -39,14 +39,11 @@ export default function PromptCard({ prompt, compact = false }: PromptCardProps)
       }`}
       style={{ height: compact ? 'auto' : '135px' }}
     >
-      {/* 标题和分类 */}
-      <div className="flex items-start gap-1.5 mb-1 flex-shrink-0">
-        <h3 className="text-base font-semibold text-gray-900 line-clamp-1 flex-1 min-w-0">
+      {/* 标题 */}
+      <div className="mb-1 flex-shrink-0">
+        <h3 className="text-base font-semibold text-gray-900 line-clamp-1">
           {prompt.title}
         </h3>
-        <span className="inline-flex items-center px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-medium rounded flex-shrink-0">
-          {prompt.categoryName || prompt.category}
-        </span>
       </div>
 
       {/* 作者来源 - 小字显示在标题下 */}

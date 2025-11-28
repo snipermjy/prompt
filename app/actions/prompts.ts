@@ -148,16 +148,25 @@ export async function searchPrompts(
  * 
  * @param id - 提示词ID
  */
-export async function incrementViewCount(id: string): Promise<void> {
+export async function incrementViewCount(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = createAdminClient();
     
-    await supabase.rpc('increment_prompt_counter', {
+    const { error } = await supabase.rpc('increment_prompt_counter', {
       prompt_id: id,
       counter_name: 'view_count'
     });
+    
+    if (error) {
+      console.error('Error incrementing view count:', error);
+      return { success: false, error: error.message };
+    }
+    
+    return { success: true };
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error incrementing view count:', error);
+    return { success: false, error: message };
   }
 }
 
@@ -167,16 +176,25 @@ export async function incrementViewCount(id: string): Promise<void> {
  * 
  * @param id - 提示词ID
  */
-export async function incrementCopyCount(id: string): Promise<void> {
+export async function incrementCopyCount(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = createAdminClient();
     
-    await supabase.rpc('increment_prompt_counter', {
+    const { error } = await supabase.rpc('increment_prompt_counter', {
       prompt_id: id,
       counter_name: 'copy_count'
     });
+    
+    if (error) {
+      console.error('Error incrementing copy count:', error);
+      return { success: false, error: error.message };
+    }
+    
+    return { success: true };
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error incrementing copy count:', error);
+    return { success: false, error: message };
   }
 }
 
@@ -186,16 +204,25 @@ export async function incrementCopyCount(id: string): Promise<void> {
  * 
  * @param id - 提示词ID
  */
-export async function incrementShareCount(id: string): Promise<void> {
+export async function incrementShareCount(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = createAdminClient();
     
-    await supabase.rpc('increment_prompt_counter', {
+    const { error } = await supabase.rpc('increment_prompt_counter', {
       prompt_id: id,
       counter_name: 'share_count'
     });
+    
+    if (error) {
+      console.error('Error incrementing share count:', error);
+      return { success: false, error: error.message };
+    }
+    
+    return { success: true };
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error incrementing share count:', error);
+    return { success: false, error: message };
   }
 }
 
