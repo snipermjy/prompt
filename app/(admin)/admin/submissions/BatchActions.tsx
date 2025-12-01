@@ -15,7 +15,7 @@ interface BatchActionsProps {
   onClearSelection: () => void;
 }
 
-export default function BatchActions({ selectedIds, submissions, onClearSelection }: BatchActionsProps) {
+export default function BatchActions({ selectedIds, onClearSelection }: BatchActionsProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [actionType, setActionType] = useState<string>('');

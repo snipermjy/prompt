@@ -6,9 +6,9 @@ import { MetadataRoute } from 'next';
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'AI提示词库 - 精选优质AI提示词',
-    short_name: 'AI提示词库',
-    description: '收录各类优质AI提示词，涵盖ChatGPT、Claude、Midjourney等主流AI工具',
+    name: 'AI Prompt Library - Curated AI prompts',
+    short_name: 'AI Prompt Library',
+    description: 'Curated collection of high-quality AI prompts for ChatGPT, Claude, Midjourney and more.',
     start_url: '/',
     display: 'standalone',
     background_color: '#ffffff',

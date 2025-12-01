@@ -8,6 +8,7 @@ import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
 import Button from '@/components/ui/Button';
 import DuplicateChecker from '@/components/ui/DuplicateChecker';
+import { formatPromptContent } from '@/lib/utils/formatContent';
 
 /**
  * 提示词表单组件（添加/编辑）
@@ -26,12 +27,14 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
   const [aiProgressText, setAiProgressText] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [checking, setChecking] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [duplicates, setDuplicates] = useState<any[]>([]);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [showFormatPreview, setShowFormatPreview] = useState(false);
   const [originalContent, setOriginalContent] = useState('');
 
   // 从 sessionStorage 读取转换的提交数据（如果有）
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [convertedData, setConvertedData] = useState<any>(null);
 
   // 表单数据 - 优先使用 initialData，然后是 convertedData，最后是默认值
@@ -48,6 +51,7 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
   const [authorLink, setAuthorLink] = useState(initialData?.author_link || convertedData?.author_link || '');
 
   // 组件挂载时检查 sessionStorage
+  // 当 initialData 为空时，从 sessionStorage 自动填充一次数据
   useEffect(() => {
     if (typeof window !== 'undefined' && !initialData) {
       const stored = sessionStorage.getItem('convertSubmission');
@@ -73,7 +77,7 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
         }
       }
     }
-  }, []); // 只在挂载时执行一次
+  }, [initialData]);
 
   // 标签输入
   const [tagInput, setTagInput] = useState('');
@@ -249,12 +253,24 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
         setUseCases(metadata.use_cases || []);
         setLanguage(metadata.language || 'zh-CN');
 
+        // 阶段 11: 检查重复
+        setAiProgressText('正在检查重复...');
+        setAiProgress(98);
+        const duplicateResults = await checkDuplicates(content.trim(), metadata.title || '');
+        if (duplicateResults.length > 0) {
+          setDuplicates(duplicateResults);
+          setShowDuplicateDialog(true);
+        }
+
         // 完成
         setAiProgressText('生成完成！');
         setAiProgress(100);
         await new Promise(resolve => setTimeout(resolve, 300));
 
-        setMessage({ type: 'success', text: 'AI 生成成功！请检查并调整生成的内容' });
+        const duplicateMsg = duplicateResults.length > 0 
+          ? `（发现${duplicateResults.length}个相似提示词，请注意查看）` 
+          : '';
+        setMessage({ type: 'success', text: `AI 生成成功！请检查并调整生成的内容${duplicateMsg}` });
       }
     } catch (error) {
       console.error('AI 生成错误:', error);
@@ -360,7 +376,40 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
       console.log('操作结果:', result);
 
       if (result) {
-        console.log('✅ 操作成功！准备显示成功消息并跳转');
+        console.log('✅ 操作成功！准备生成英文翻译...');
+        
+        // 🌐 自动生成英文翻译（新增或编辑都生成）
+        try {
+          const promptId = initialData?.id || result.id;
+          console.log('🤖 开始 AI 翻译，提示词 ID:', promptId);
+          
+          const translateResponse = await fetch('/api/translate/prompt', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              promptId: promptId,
+              title: title.trim(),
+              description: description.trim() || undefined,
+              content: content.trim(),
+              sourceLocale: 'zh',
+              targetLocale: 'en',
+            }),
+          });
+
+          const translateResult = await translateResponse.json();
+          
+          if (translateResult.success) {
+            console.log('✅ 英文翻译生成成功！');
+          } else {
+            console.warn('⚠️ 英文翻译生成失败:', translateResult.error);
+            // 翻译失败不影响主流程，只记录警告
+          }
+        } catch (translateError) {
+          console.error('❌ 翻译过程出错:', translateError);
+          // 翻译失败不影响主流程
+        }
         
         // 如果是从用户提交转换来的，更新提交状态为已通过
         if (typeof window !== 'undefined' && !initialData) {
@@ -379,10 +428,10 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
         
         setMessage({
           type: 'success',
-          text: initialData ? '更新成功' : '添加成功',
+          text: initialData ? '更新成功，英文翻译已生成' : '添加成功，英文翻译已生成',
         });
         
-        console.log('📍 准备跳转到列表页，1秒后执行...');
+        console.log('📍 准备跳转到列表页，1.5秒后执行...');
         const timerId = setTimeout(() => {
           console.log('⏰ setTimeout 触发！开始跳转到 /admin/prompts');
           try {
@@ -391,7 +440,7 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
           } catch (err) {
             console.error('❌ router.push 调用失败:', err);
           }
-        }, 1000);
+        }, 1500); // 增加到1.5秒，给翻译更多时间
         console.log('⏱️ setTimeout 已设置，ID:', timerId);
       } else {
         console.error('操作失败：result 为 null');
@@ -531,7 +580,6 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
                     <pre className="whitespace-pre-wrap font-sans text-sm text-gray-700 leading-relaxed">
                       {(() => {
                         try {
-                          const { formatPromptContent } = require('@/lib/utils/formatContent');
                           return formatPromptContent(content);
                         } catch {
                           return content;
@@ -559,7 +607,7 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-sm text-blue-700">
-              💡 <strong>使用提示：</strong>先输入提示词内容（至少 20 字符），然后点击右上角"AI 自动生成"按钮，
+              💡 <strong>使用提示：</strong>先输入提示词内容（至少 20 字符），然后点击右上角「AI 自动生成」按钮，
               AI 会自动分析内容并生成标题、描述、分类、标签等信息。生成后请检查并按需调整。
             </p>
           </div>

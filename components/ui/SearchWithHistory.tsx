@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useSearchHistory } from '@/hooks/useSearchHistory';
 import { sanitizeString } from '@/lib/utils/validation';
 
@@ -15,11 +16,12 @@ interface SearchWithHistoryProps {
  * 带历史记录的搜索框组件
  */
 export default function SearchWithHistory({ 
-  placeholder = '搜索提示词...', 
+  placeholder, 
   className = '',
   onSearch
 }: SearchWithHistoryProps) {
   const router = useRouter();
+  const t = useTranslations('search');
   const { history, addSearchTerm, removeSearchTerm, clearHistory } = useSearchHistory();
   const [query, setQuery] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
@@ -92,7 +94,7 @@ export default function SearchWithHistory({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={handleFocus}
-          placeholder={placeholder}
+          placeholder={placeholder || t('placeholder') || 'Search prompts...'}
           className="w-full px-4 py-2 pl-10 pr-10 text-sm text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
         />
         {/* 搜索图标 */}
@@ -123,12 +125,12 @@ export default function SearchWithHistory({
         <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
           {/* 标题栏 */}
           <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
-            <span className="text-xs font-semibold text-gray-600">搜索历史</span>
+            <span className="text-xs font-semibold text-gray-600">{t('history') || 'Search History'}</span>
             <button
               onClick={handleClearAll}
               className="text-xs text-gray-500 hover:text-red-600 transition-colors"
             >
-              清空
+              {t('clearHistory') || 'Clear'}
             </button>
           </div>
 

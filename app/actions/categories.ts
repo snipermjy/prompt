@@ -245,7 +245,29 @@ export async function createCategory(
       throw new Error(`Failed to create category: ${error.message}`);
     }
     
-    // 5. 发送新分类创建通知
+    // 5. 同步翻译为英文（等待翻译完成）
+    try {
+      const { translateCategory } = await import('@/lib/ai/translate');
+      const { upsertCategoryTranslation } = await import('@/app/actions/translations');
+      
+      console.log('开始翻译分类:', data.id, name);
+      const translation = await translateCategory(name, description || '', 'en');
+      
+      await upsertCategoryTranslation({
+        category_id: data.id,
+        locale: 'en',
+        name: translation.name,
+        description: translation.description,
+        translation_status: 'ai_translated',
+        translated_by: 'ai',
+      });
+      
+      console.log('分类翻译成功:', data.id);
+    } catch (translationError) {
+      console.error('翻译失败:', data.id, translationError);
+    }
+    
+    // 6. 发送新分类创建通知
     const { notifyAdmin } = await import('@/lib/utils/adminNotification');
     await notifyAdmin({
       type: 'new_category',

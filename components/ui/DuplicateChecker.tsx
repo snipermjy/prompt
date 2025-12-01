@@ -206,7 +206,7 @@ interface BatchDuplicateResult {
   content: string;
   title?: string;
   duplicates: DuplicateItem[];
-  aiResult?: any;
+  aiResult?: unknown;
 }
 
 interface BatchDuplicateCheckerProps {

@@ -56,14 +56,32 @@ export const difficultyConfig = {
 };
 
 /**
- * 语言配置
+ * 语言配置 - 支持多语言显示
  */
-export const languageConfig = {
-  'zh-CN': { label: '中文', flag: '🇨🇳' },
-  'en-US': { label: 'English', flag: '🇺🇸' },
-  'ja-JP': { label: '日本語', flag: '🇯🇵' },
-  other: { label: '其他', flag: '🌐' },
+export const languageConfig: Record<string, { label: Record<string, string>; flag: string }> = {
+  'zh-CN': { 
+    label: { zh: '中文', en: 'Chinese' }, 
+    flag: '🇨🇳' 
+  },
+  'en-US': { 
+    label: { zh: '英语', en: 'English' }, 
+    flag: '🇺🇸' 
+  },
+  'ja-JP': { 
+    label: { zh: '日语', en: 'Japanese' }, 
+    flag: '🇯🇵' 
+  },
+  other: { 
+    label: { zh: '其他', en: 'Other' }, 
+    flag: '🌐' 
+  },
 };
+
+// 获取语言显示名称
+export function getLanguageLabel(langCode: string, currentLocale: 'zh' | 'en' = 'zh'): string {
+  const config = languageConfig[langCode] || languageConfig.other;
+  return config.label[currentLocale] || config.label.zh;
+}
 
 /**
  * 状态配置

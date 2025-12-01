@@ -20,7 +20,7 @@ export type NotificationType =
 export interface AdminNotification {
   type: NotificationType;
   message: string;
-  data?: any;
+  data?: unknown;
 }
 
 /**

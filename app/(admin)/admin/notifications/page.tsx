@@ -2,6 +2,8 @@ import Breadcrumb from '@/components/layout/Breadcrumb';
 import NotificationList from './NotificationList';
 import { createAdminClient } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
   title: '系统通知 - 管理后台',
   description: '查看系统通知',

@@ -1,11 +1,10 @@
 import { notFound } from 'next/navigation';
-import { getPromptById, getRelatedPrompts } from '@/app/actions/prompts';
-import { getCategoryBySlug } from '@/app/actions/categories';
+import { getRelatedPrompts } from '@/app/actions/prompts';
+import { getPromptWithTranslation, getCategoryWithTranslation } from '@/app/actions/translations';
+import { getTranslations } from 'next-intl/server';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import PromptCard from '@/components/features/PromptCard';
-import { formatNumber } from '@/lib/utils/formatNumber';
-import { formatDate } from '@/lib/utils/formatDate';
-import { languageConfig } from '@/lib/config/site';
+import { languageConfig, getLanguageLabel } from '@/lib/config/site';
 import CopyButton from './CopyButton';
 import ShareButton from './ShareButton';
 import BackButton from './BackButton';
@@ -15,57 +14,62 @@ import { ArticleJsonLd, BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 
 /**
  * 提示词详情页
- * ISR: 每1分钟重新生成页面以更新统计数据
+ * 使用动态渲染，避免构建期预渲染错误
  */
 
-// ISR: 每1分钟重新生成页面
-export const revalidate = 60;
+export const dynamic = 'force-dynamic';
 
 interface PageProps {
   params: Promise<{
     id: string;
+    locale: string;
   }>;
 }
 
 export async function generateMetadata({ params }: PageProps) {
-  const { id } = await params;
-  const prompt = await getPromptById(id);
+  const { id, locale } = await params;
+  const prompt = await getPromptWithTranslation(id, locale as 'zh' | 'en');
+  const tSite = await getTranslations({ locale, namespace: 'site' });
+  const siteName = tSite('name');
   
   if (!prompt) {
     return {
-      title: '提示词不存在',
+      title: locale === 'en' ? 'Prompt not found' : '提示词不存在',
     };
   }
   
   return {
-    title: `${prompt.title} - AI提示词库`,
+    title: `${prompt.title} - ${siteName}`,
     description: prompt.description || prompt.title,
     keywords: [prompt.title, prompt.category, ...prompt.tags, ...(prompt.prompt_type || []), ...(prompt.use_cases || [])],
     openGraph: {
-      title: `${prompt.title} - AI提示词库`,
+      title: `${prompt.title} - ${siteName}`,
       description: prompt.description || prompt.title,
       type: 'article',
     },
     twitter: {
       card: 'summary',
-      title: `${prompt.title} - AI提示词库`,
+      title: `${prompt.title} - ${siteName}`,
       description: prompt.description || prompt.title,
     },
   };
 }
 
 export default async function PromptDetailPage({ params }: PageProps) {
-  const { id } = await params;
+  const { id, locale } = await params;
   
-  // 获取提示词详情
-  const prompt = await getPromptById(id);
+  // 获取翻译
+  const t = await getTranslations({ locale, namespace: 'prompt' });
+  
+  // 获取提示词详情（带翻译）
+  const prompt = await getPromptWithTranslation(id, locale as 'zh' | 'en');
   
   if (!prompt) {
     notFound();
   }
   
-  // 获取分类信息
-  const category = await getCategoryBySlug(prompt.category);
+  // 获取分类信息（带翻译）
+  const category = await getCategoryWithTranslation(prompt.category, locale as 'zh' | 'en');
   const categoryName = category?.name || prompt.category;
   
   // 获取相关推荐
@@ -77,7 +81,9 @@ export default async function PromptDetailPage({ params }: PageProps) {
     categoryName: categoryName,
   }));
   
-  const language = languageConfig[prompt.language];
+  // 如果是英文页面且有翻译，显示英语；否则显示原始语言
+  const displayLanguage = locale === 'en' && prompt._translation_status ? 'en-US' : prompt.language;
+  const language = languageConfig[displayLanguage] || languageConfig[prompt.language];
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
   const promptUrl = `${siteUrl}/prompt/${id}`;
   
@@ -86,12 +92,12 @@ export default async function PromptDetailPage({ params }: PageProps) {
       <ArticleJsonLd prompt={prompt} url={promptUrl} />
       <BreadcrumbJsonLd
         items={[
-          { name: '首页', url: siteUrl },
+          { name: t('home'), url: siteUrl },
           { name: categoryName, url: `${siteUrl}/category/${prompt.category}` },
           { name: prompt.title, url: promptUrl },
         ]}
       />
-      <div className="max-w-[1920px] mx-auto px-4 md:px-6 py-6">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
         {/* 浏览量追踪组件 */}
         <ViewTracker promptId={id} />
         {/* 面包屑导航 */}
@@ -117,20 +123,20 @@ export default async function PromptDetailPage({ params }: PageProps) {
           <div className="flex items-center gap-4 flex-shrink-0">
             {/* 统计图标 - 带动画效果 */}
             <div className="flex items-center gap-3 text-gray-500">
-              <div className="flex items-center gap-1" title="浏览量">
+              <div className="flex items-center gap-1" title={t('viewCount')}>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                 </svg>
                 <AnimatedNumber value={prompt.view_count} useFormatNumber className="text-xs" />
               </div>
-              <div className="flex items-center gap-1" title="复制量">
+              <div className="flex items-center gap-1" title={t('copyCount')}>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                 </svg>
                 <AnimatedNumber value={prompt.copy_count} useFormatNumber className="text-xs" />
               </div>
-              <div className="flex items-center gap-1" title="分享量">
+              <div className="flex items-center gap-1" title={t('shareCount')}>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                 </svg>
@@ -154,7 +160,7 @@ export default async function PromptDetailPage({ params }: PageProps) {
             <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
             </svg>
-            <span className="text-xs">来源：</span>
+            <span className="text-xs">{t('source')}:</span>
             <a
               href={prompt.author_link}
               target="_blank"
@@ -178,7 +184,7 @@ export default async function PromptDetailPage({ params }: PageProps) {
         {/* 左侧：提示词内容 */}
         <div className="flex-1">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold text-gray-900">提示词内容</h2>
+            <h2 className="text-lg font-semibold text-gray-900">{t('title')}</h2>
             <div className="flex items-center gap-2">
               <CopyButton content={prompt.content} promptId={prompt.id} />
               <ShareButton promptId={prompt.id} title={prompt.title} />
@@ -200,22 +206,22 @@ export default async function PromptDetailPage({ params }: PageProps) {
                 <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                 </svg>
-                <h2 className="text-base font-semibold text-gray-900">提示词信息</h2>
+                <h2 className="text-base font-semibold text-gray-900">{t('info')}</h2>
               </div>
               
               <div className="space-y-3">
                 {/* 语言 */}
                 <div>
-                  <div className="text-xs text-gray-500 mb-1.5">语言</div>
+                  <div className="text-xs text-gray-500 mb-1.5">{t('language')}</div>
                   <span className="inline-block px-2 py-1 bg-gray-50 text-gray-700 text-sm rounded">
-                    {language.flag} {language.label}
+                    {language.flag} {getLanguageLabel(displayLanguage, locale as 'zh' | 'en')}
                   </span>
                 </div>
                 
                 {/* 提示词类型 */}
                 {prompt.prompt_type && prompt.prompt_type.length > 0 && (
                   <div>
-                    <div className="text-xs text-gray-500 mb-1.5">类型</div>
+                    <div className="text-xs text-gray-500 mb-1.5">{t('type')}</div>
                     <div className="flex flex-wrap gap-1.5">
                       {prompt.prompt_type.map((type, index) => (
                         <span key={index} className="inline-block px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded">
@@ -229,7 +235,7 @@ export default async function PromptDetailPage({ params }: PageProps) {
                 {/* 使用场景 */}
                 {prompt.use_cases && prompt.use_cases.length > 0 && (
                   <div>
-                    <div className="text-xs text-gray-500 mb-1.5">使用场景</div>
+                    <div className="text-xs text-gray-500 mb-1.5">{t('useCases')}</div>
                     <div className="flex flex-wrap gap-1.5">
                       {prompt.use_cases.map((useCase, index) => (
                         <span key={index} className="inline-block px-2 py-1 bg-green-50 text-green-700 text-xs rounded">
@@ -243,7 +249,7 @@ export default async function PromptDetailPage({ params }: PageProps) {
                 {/* 标签 */}
                 {prompt.tags && prompt.tags.length > 0 && (
                   <div>
-                    <div className="text-xs text-gray-500 mb-1.5">标签</div>
+                    <div className="text-xs text-gray-500 mb-1.5">{t('tags')}</div>
                     <div className="flex flex-wrap gap-1.5">
                       {prompt.tags.map((tag, index) => (
                         <span key={index} className="inline-block px-2 py-1 bg-purple-50 text-purple-700 text-xs rounded">
@@ -262,7 +268,7 @@ export default async function PromptDetailPage({ params }: PageProps) {
                 <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
-                <h2 className="text-base font-semibold text-gray-900">相关推荐</h2>
+                <h2 className="text-base font-semibold text-gray-900">{t('relatedPrompts')}</h2>
               </div>
               {relatedPromptsWithCategoryName.length > 0 ? (
                 <div className="flex flex-col gap-3">
@@ -272,7 +278,7 @@ export default async function PromptDetailPage({ params }: PageProps) {
                 </div>
               ) : (
                 <p className="text-sm text-gray-600 text-center py-4">
-                  暂无相关推荐
+                  {t('noRelated')}
                 </p>
               )}
             </div>

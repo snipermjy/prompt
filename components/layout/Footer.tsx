@@ -1,4 +1,7 @@
-import { siteConfig } from '@/lib/config/site';
+'use client';
+
+import { useTranslations } from 'next-intl';
+import { useParams } from 'next/navigation';
 
 /**
  * 网站底部组件
@@ -6,6 +9,11 @@ import { siteConfig } from '@/lib/config/site';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
+  const tFooter = useTranslations('footer');
+  const tNav = useTranslations('nav');
+  const tSite = useTranslations('site');
+  const params = useParams();
+  const locale = params.locale || 'zh';
 
   return (
     <footer className="bg-white border-t border-gray-200 mt-auto">
@@ -13,22 +21,22 @@ export default function Footer() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           {/* 版权信息 */}
           <div className="text-sm text-gray-600">
-            © {currentYear} {siteConfig.name}. All rights reserved.
+            {tFooter('copyright', { year: currentYear, siteName: tSite('name') })}
           </div>
 
           {/* 友情链接 */}
           <div className="flex items-center gap-6 text-sm">
             <a
-              href="/about"
+              href={`/${locale}/about`}
               className="text-gray-600 hover:text-blue-600 transition-colors"
             >
-              关于我们
+              {tFooter('about')}
             </a>
             <a
-              href="/submit"
+              href={`/${locale}/submit`}
               className="text-gray-600 hover:text-blue-600 transition-colors"
             >
-              提交提示词
+              {tNav('submit')}
             </a>
             <a
               href="https://github.com"

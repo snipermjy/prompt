@@ -2,10 +2,10 @@
  * 全部标记为已读 API
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     const supabase = createAdminClient();
 

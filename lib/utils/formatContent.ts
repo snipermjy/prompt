@@ -71,9 +71,7 @@ export function formatPromptContent(content: string): string {
   const lines = formatted.split('\n');
   const result: string[] = [];
   let inProtectedBlock = false;
-  let protectedBlockType = '';
   let prevLineType: 'empty' | 'title' | 'list' | 'normal' | 'protected' = 'empty';
-  let lastWasParagraph = false; // 追踪上一个是否为段落
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -83,14 +81,12 @@ export function formatPromptContent(content: string): string {
     if (trimmedLine.startsWith('```')) {
       if (!inProtectedBlock) {
         inProtectedBlock = true;
-        protectedBlockType = 'code';
         // 代码块前加空行（如果前面不是空行）
         if (prevLineType !== 'empty' && result.length > 0) {
           result.push('');
         }
       } else {
         inProtectedBlock = false;
-        protectedBlockType = '';
       }
       result.push(line.trimEnd());
       prevLineType = 'protected';
@@ -156,7 +152,7 @@ export function formatPromptContent(content: string): string {
       if (nextLine && !isListItem(lines[i + 1]) && !isTitleLine(lines[i + 1])) {
         // 检查下一行是否也是普通段落
         if (!nextLine.startsWith('```') && !nextLine.includes('|')) {
-          lastWasParagraph = true;
+          // 下一行是普通段落
         }
       }
     }

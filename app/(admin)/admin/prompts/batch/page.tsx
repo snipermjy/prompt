@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { BatchTask, BatchTaskStats } from '@/lib/types/batch';
 import type { Category } from '@/lib/types/database';
+import type { AIGeneratedMetadata } from '@/lib/ai/generate';
 import { getCategories } from '@/app/actions/categories';
 import { createPrompt, checkDuplicates } from '@/app/actions/prompts';
 import Textarea from '@/components/ui/Textarea';
@@ -13,11 +14,11 @@ import DuplicateChecker from '@/components/ui/DuplicateChecker';
 import TaskDetailModal from './TaskDetailModal';
 import TaskEditForm from './TaskEditForm';
 
-const MAX_CONCURRENT = 10; // 最大并发数
 const STORAGE_KEY = 'batch_tasks';
 const DEBUG = process.env.NODE_ENV === 'development'; // 开发环境启用调试日志
 
 // 调试日志辅助函数
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const debugLog = (...args: any[]) => {
   if (DEBUG) {
     console.log(...args);
@@ -33,6 +34,7 @@ export default function BatchAddPage() {
   const [tasks, setTasks] = useState<BatchTask[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [duplicateResults, setDuplicateResults] = useState<any[]>([]);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [singleDuplicateTask, setSingleDuplicateTask] = useState<BatchTask | null>(null);
@@ -71,18 +73,22 @@ export default function BatchAddPage() {
 
   // 组件卸载时清理所有超时和请求
   useEffect(() => {
+    // 在 effect 运行时捕获当前的 Map 引用，避免在 cleanup 中直接访问 ref.current
+    const abortControllers = abortControllersRef.current;
+    const timeouts = timeoutsRef.current;
+
     return () => {
       // 取消所有进行中的请求
-      abortControllersRef.current.forEach((controller) => {
+      abortControllers.forEach((controller) => {
         controller.abort();
       });
-      abortControllersRef.current.clear();
+      abortControllers.clear();
       
       // 清理所有超时
-      timeoutsRef.current.forEach((timeout) => {
+      timeouts.forEach((timeout) => {
         clearTimeout(timeout);
       });
-      timeoutsRef.current.clear();
+      timeouts.clear();
       
       debugLog('批量处理页面卸载，已清理所有资源');
     };
@@ -116,6 +122,9 @@ export default function BatchAddPage() {
       progress: 0,
       progressText: '等待处理',
       result: null,
+      translation: null,
+      translationStatus: 'pending',
+      translationError: null,
       error: null,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -223,10 +232,14 @@ export default function BatchAddPage() {
         
         updateTask(taskId, {
           status: 'success',
-          progress: 100,
-          progressText: '生成完成',
+          progress: 85,
+          progressText: '开始翻译...',
           result: { ...data.data, duplicates: [] },
         });
+        
+        // 立即开始翻译
+        console.log('AI分析成功，调用translateTask:', taskId, data.data);
+        translateTask(taskId, data.data);
       } else {
         throw new Error('AI返回数据格式错误');
       }
@@ -374,10 +387,13 @@ export default function BatchAddPage() {
         
         updateTask(taskId, {
           status: 'success',
-          progress: 100,
-          progressText: duplicates.length > 0 ? `生成完成（发现${duplicates.length}个相似项）` : '生成完成',
+          progress: 85,
+          progressText: '开始翻译...',
           result: { ...data.data, duplicates },
         });
+        
+        // 立即开始翻译
+        translateTask(taskId, data.data);
       } else {
         throw new Error('AI返回数据格式错误');
       }
@@ -414,6 +430,62 @@ export default function BatchAddPage() {
         progress: 0,
         progressText: '生成失败',
         error: errorMessage,
+      });
+    }
+  };
+
+  // 翻译任务
+  const translateTask = async (taskId: string, aiData: AIGeneratedMetadata) => {
+    console.log('=== translateTask 开始 ===', taskId);
+    console.log('aiData:', aiData);
+    try {
+      const task = tasksRef.current.find(t => t.id === taskId);
+      if (!task) {
+        throw new Error('任务不存在');
+      }
+      console.log('找到任务:', task);
+
+      updateTask(taskId, {
+        translationStatus: 'translating',
+        progress: 90,
+        progressText: '正在翻译...',
+      });
+      console.log('开始调用翻译API...');
+
+      const response = await fetch('/api/translate/prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: aiData.title,
+          description: aiData.description,
+          content: task.content,
+          tags: aiData.tags || [],
+          use_cases: aiData.use_cases || [],
+          prompt_type: aiData.prompt_type || [],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('翻译API调用失败');
+      }
+
+      const result = await response.json();
+      console.log('翻译API返回:', result);
+
+      updateTask(taskId, {
+        translation: result.translation,
+        translationStatus: 'success',
+        progress: 100,
+        progressText: '生成完成（已翻译）',
+      });
+      console.log('=== translateTask 完成 ===', result.translation);
+    } catch (error) {
+      console.error('翻译失败:', error);
+      updateTask(taskId, {
+        translationStatus: 'failed',
+        translationError: error instanceof Error ? error.message : '翻译失败',
+        progress: 100,
+        progressText: '生成完成（翻译失败）',
       });
     }
   };
@@ -602,7 +674,7 @@ export default function BatchAddPage() {
           difficulty: 'beginner',
           language: task.result.language,
           status: 'published',
-        });
+        }, task.translation || undefined); // 传递预翻译结果
 
         // 发布成功，从列表移除
         handleDelete(task.id);
@@ -827,7 +899,7 @@ export default function BatchAddPage() {
           </svg>
           <h3 className="text-lg font-semibold text-gray-900 mb-2">还没有任务</h3>
           <p className="text-sm text-gray-600">
-            在上方输入提示词内容，点击"添加到队列"开始批量处理
+            在上方输入提示词内容，点击「添加到队列」开始批量处理
           </p>
         </div>
       )}
@@ -927,16 +999,7 @@ export default function BatchAddPage() {
 /**
  * 任务卡片组件
  */
-function TaskCard({
-  task,
-  categories,
-  onRetry,
-  onDelete,
-  onToggleSelect,
-  onToggleEdit,
-  onViewDetail,
-  onViewDuplicate,
-}: {
+function TaskCard(props: {
   task: BatchTask;
   categories: Category[];
   onRetry: (id: string) => void;
@@ -946,6 +1009,7 @@ function TaskCard({
   onViewDetail: () => void;
   onViewDuplicate: () => void;
 }) {
+  const { task, onRetry, onDelete, onToggleSelect, onToggleEdit, onViewDetail, onViewDuplicate } = props;
   const getStatusColor = () => {
     switch (task.status) {
       case 'pending':
@@ -1071,7 +1135,7 @@ function TaskCard({
                   <p className="text-sm font-semibold text-red-800 mb-1">处理失败</p>
                   <p className="text-sm text-red-700">{task.error || '未知错误'}</p>
                   <p className="text-xs text-red-600 mt-2">
-                    💡 提示：点击"重试"按钮重新处理，或检查提示词内容是否符合要求（至少20字符）
+                    💡 提示：点击「重试」按钮重新处理，或检查提示词内容是否符合要求（至少20字符）
                   </p>
                 </div>
               </div>

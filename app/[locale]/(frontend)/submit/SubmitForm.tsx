@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { createSubmission } from '@/app/actions/submissions';
 import { checkDuplicates } from '@/app/actions/prompts';
 import Input from '@/components/ui/Input';
@@ -9,7 +10,7 @@ import Textarea from '@/components/ui/Textarea';
 import Button from '@/components/ui/Button';
 import Modal, { ModalBody } from '@/components/ui/Modal';
 import DuplicateChecker from '@/components/ui/DuplicateChecker';
-import { validateEmail, validateUrl, validateLength, checkRateLimit } from '@/lib/utils/validation';
+import { validateEmail, validateUrl, checkRateLimit } from '@/lib/utils/validation';
 
 /**
  * 用户提交表单组件
@@ -22,10 +23,12 @@ const MAX_DESCRIPTION_LENGTH = 200;
 
 export default function SubmitForm() {
   const router = useRouter();
+  const t = useTranslations('submit');
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [duplicates, setDuplicates] = useState<any[]>([]);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   
@@ -51,23 +54,23 @@ export default function SubmitForm() {
     // 验证提示词内容
     if (touched.content) {
       if (!content.trim()) {
-        errors.content = '请输入提示词内容';
+        errors.content = t('contentRequired');
       } else if (content.length < MIN_CONTENT_LENGTH) {
-        errors.content = `内容至少需要 ${MIN_CONTENT_LENGTH} 个字符（当前 ${content.length} 个）`;
+        errors.content = t('contentMinLength', { min: MIN_CONTENT_LENGTH, current: content.length });
       }
     }
 
     // 验证邮箱
     if (touched.email && submitterEmail) {
       if (!validateEmail(submitterEmail)) {
-        errors.email = '请输入有效的邮箱地址';
+        errors.email = t('invalidEmail');
       }
     }
 
     // 验证URL
     if (touched.authorLink && authorLink) {
       if (!validateUrl(authorLink)) {
-        errors.authorLink = '请输入有效的链接（以 http:// 或 https:// 开头）';
+        errors.authorLink = t('invalidUrl');
       }
     }
 
@@ -75,7 +78,7 @@ export default function SubmitForm() {
       errors,
       isValid: Object.keys(errors).length === 0 && content.trim().length >= MIN_CONTENT_LENGTH,
     };
-  }, [content, submitterEmail, authorLink, touched]);
+  }, [content, submitterEmail, authorLink, touched, t]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,18 +88,18 @@ export default function SubmitForm() {
 
     // 验证表单
     if (!validation.isValid) {
-      setMessage({ type: 'error', text: '请检查表单中的错误项' });
+      setMessage({ type: 'error', text: t('checkFormErrors') });
       return;
     }
     
     if (!content.trim() || content.length < MIN_CONTENT_LENGTH) {
-      setMessage({ type: 'error', text: `提示词内容至少需要 ${MIN_CONTENT_LENGTH} 个字符` });
+      setMessage({ type: 'error', text: t('contentMinLength', { min: MIN_CONTENT_LENGTH, current: content.length }) });
       return;
     }
     
     // 客户端限流检查（防止恶意提交）
     if (!checkRateLimit('submit_form', 3, 60000)) {
-      setMessage({ type: 'error', text: '提交过于频繁，请稍后再试' });
+      setMessage({ type: 'error', text: t('rateLimitExceeded') });
       return;
     }
 
@@ -112,8 +115,7 @@ export default function SubmitForm() {
         setShowDuplicateDialog(true);
         return;
       }
-    } catch (error) {
-      console.error('检查重复失败:', error);
+    } catch {
       // 检查失败不阻止提交
     } finally {
       setChecking(false);
@@ -151,8 +153,8 @@ export default function SubmitForm() {
       } else {
         setMessage({ type: 'error', text: result.message });
       }
-    } catch (error) {
-      setMessage({ type: 'error', text: '提交失败，请稍后重试' });
+    } catch {
+      setMessage({ type: 'error', text: t('failed') });
     } finally {
       setLoading(false);
     }
@@ -184,8 +186,8 @@ export default function SubmitForm() {
       {/* 提示词内容 */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         <Textarea
-          label="提示词内容"
-          placeholder="请输入你的AI提示词内容..."
+          label={t('contentLabel')}
+          placeholder={t('contentPlaceholder')}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           onBlur={() => setTouched(prev => ({ ...prev, content: true }))}
@@ -199,15 +201,15 @@ export default function SubmitForm() {
           <p className="text-xs text-red-600 mt-2">{validation.errors.content}</p>
         )}
         <p className="text-xs text-gray-500 mt-2">
-          请确保提示词内容清晰、实用，能够帮助他人更好地使用AI工具（至少 {MIN_CONTENT_LENGTH} 个字符）
+          {t('contentMinLength', { min: MIN_CONTENT_LENGTH, current: content.length })}
         </p>
       </div>
 
       {/* 提示词简介 */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         <Textarea
-          label="提示词简介/说明（选填）"
-          placeholder="简单描述这个提示词的用途和特点..."
+          label={t('descriptionLabel')}
+          placeholder={t('descriptionPlaceholder')}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
@@ -223,22 +225,22 @@ export default function SubmitForm() {
           <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
-          提交人信息（选填）
+          {t('submitterInfo')}
         </h3>
         <p className="text-xs text-gray-600 mb-3">
-          如果您希望展示您的社交媒体账号，可以填写以下信息。审核通过后，会在提示词详情页展示。
+          {t('submitterInfoHint')}
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <Input
-            label="账号名称"
-            placeholder="例如：小红书昵称、B站UP主名"
+            label={t('authorName')}
+            placeholder={t('authorNamePlaceholder')}
             value={authorName}
             onChange={(e) => setAuthorName(e.target.value)}
             maxLength={50}
           />
           <div>
             <Input
-              label="账号链接"
+              label={t('authorLink')}
               type="url"
               placeholder="https://..."
               value={authorLink}
@@ -255,19 +257,19 @@ export default function SubmitForm() {
       {/* 联系方式（可选） */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         <h3 className="text-sm font-semibold text-gray-900 mb-3">
-          联系方式（选填，仅用于通知审核结果）
+          {t('submitterInfo')}
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <Input
-            label="您的昵称"
-            placeholder="昵称"
+            label={t('submitterName')}
+            placeholder={t('submitterNamePlaceholder')}
             value={submitterName}
             onChange={(e) => setSubmitterName(e.target.value)}
             maxLength={50}
           />
           <div>
             <Input
-              label="您的邮箱"
+              label={t('submitterEmail')}
               type="email"
               placeholder="email@example.com"
               value={submitterEmail}
@@ -297,7 +299,7 @@ export default function SubmitForm() {
       {/* 提交按钮 */}
       <div className="flex items-center justify-between pt-4 border-t border-gray-200">
         <p className="text-xs text-gray-500">
-          提交后我们会进行审核，通过后将自动发布
+          {t('submitHint')}
         </p>
         <Button 
           type="submit" 
@@ -306,7 +308,7 @@ export default function SubmitForm() {
           loading={loading || checking}
           disabled={!validation.isValid && touched.content}
         >
-          {checking ? '检查重复中...' : loading ? '提交中...' : '提交审核'}
+          {checking ? t('checking') : loading ? t('submitting') : t('submitButton')}
         </Button>
       </div>
 
@@ -330,12 +332,8 @@ export default function SubmitForm() {
             </svg>
           </div>
 
-          <h3 className="text-2xl font-bold text-gray-900 mb-2">提交成功！</h3>
-          <p className="text-gray-600 mb-6">
-            感谢您的分享！<br />
-            我们会尽快审核您的提示词，审核通过后将自动发布。
-            {submitterEmail && <><br />审核结果将发送到您的邮箱。</>}
-          </p>
+          <h3 className="text-2xl font-bold text-gray-900 mb-2">{t('success')}</h3>
+          <p className="text-gray-600 mb-6" dangerouslySetInnerHTML={{ __html: t('successMessage') }} />
 
           <div className="flex flex-col gap-3">
             <Button
@@ -344,7 +342,7 @@ export default function SubmitForm() {
               onClick={handleContinueSubmit}
               className="w-full"
             >
-              继续提交提示词
+              {t('continueSubmit')}
             </Button>
             <Button
               variant="secondary"
@@ -352,7 +350,7 @@ export default function SubmitForm() {
               onClick={handleBackHome}
               className="w-full"
             >
-              返回首页
+              {t('backToHome')}
             </Button>
           </div>
         </ModalBody>

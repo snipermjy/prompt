@@ -62,6 +62,34 @@ export async function PATCH(
       );
     }
 
+    // 🌐 自动生成英文翻译
+    try {
+      console.log('🤖 开始生成分类英文翻译...');
+      const translateResponse = await fetch(`${request.nextUrl.origin}/api/translate/category`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          categoryId: id,
+          name: name,
+          description: description || undefined,
+          targetLocale: 'en',
+        }),
+      });
+
+      const translateResult = await translateResponse.json();
+      
+      if (translateResult.success) {
+        console.log('✅ 分类英文翻译生成成功！');
+      } else {
+        console.warn('⚠️ 分类英文翻译生成失败:', translateResult.error);
+      }
+    } catch (translateError) {
+      console.error('❌ 翻译过程出错:', translateError);
+      // 翻译失败不影响主流程
+    }
+
     return NextResponse.json({
       success: true,
       category: data,

@@ -3,13 +3,22 @@
  * 用于集成 Google Analytics 或其他分析服务
  */
 
+type GtagFn = (...args: unknown[]) => void;
+
+function getGtag(): GtagFn | undefined {
+  if (typeof window === 'undefined') return undefined;
+  const win = window as unknown as { gtag?: GtagFn };
+  return win.gtag;
+}
+
 // 页面浏览事件
 export const trackPageView = (url: string) => {
-  if (typeof window !== 'undefined' && (window as any).gtag) {
-    (window as any).gtag('config', process.env.NEXT_PUBLIC_GA_ID, {
-      page_path: url,
-    });
-  }
+  const gtag = getGtag();
+  if (!gtag || !process.env.NEXT_PUBLIC_GA_ID) return;
+
+  gtag('config', process.env.NEXT_PUBLIC_GA_ID, {
+    page_path: url,
+  });
 };
 
 // 自定义事件追踪
@@ -24,13 +33,14 @@ export const trackEvent = ({
   label?: string;
   value?: number;
 }) => {
-  if (typeof window !== 'undefined' && (window as any).gtag) {
-    (window as any).gtag('event', action, {
-      event_category: category,
-      event_label: label,
-      value: value,
-    });
-  }
+  const gtag = getGtag();
+  if (!gtag) return;
+
+  gtag('event', action, {
+    event_category: category,
+    event_label: label,
+    value: value,
+  });
 };
 
 // 提示词相关事件
@@ -85,8 +95,9 @@ export const submitEvent = (type: 'prompt' | 'feedback') => {
 
 // 错误追踪
 export const trackError = (error: Error, context?: string) => {
-  if (typeof window !== 'undefined' && (window as any).gtag) {
-    (window as any).gtag('event', 'exception', {
+  const gtag = getGtag();
+  if (gtag) {
+    gtag('event', 'exception', {
       description: error.message,
       fatal: false,
       context: context,

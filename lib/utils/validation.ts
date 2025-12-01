@@ -72,7 +72,7 @@ export function validateUUID(uuid: string): boolean {
 /**
  * 验证数组中的所有元素都是字符串
  */
-export function validateStringArray(arr: any): arr is string[] {
+export function validateStringArray(arr: unknown): arr is string[] {
   return Array.isArray(arr) && arr.every(item => typeof item === 'string');
 }
 

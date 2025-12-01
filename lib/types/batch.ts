@@ -19,6 +19,16 @@ export interface BatchTask {
   progress: number;
   progressText: string;
   result: BatchTaskResult | null;
+  translation: {
+    title: string;
+    description: string;
+    content: string;
+    tags?: string[];
+    use_cases?: string[];
+    prompt_type?: string[];
+  } | null; // 翻译结果（AI分析后立即翻译）
+  translationStatus: 'pending' | 'translating' | 'success' | 'failed'; // 翻译状态
+  translationError: string | null; // 翻译错误
   error: string | null;
   createdAt: number;
   updatedAt: number;

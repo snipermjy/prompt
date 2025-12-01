@@ -15,7 +15,7 @@ interface BatchActionsProps {
   onClearSelection: () => void;
 }
 
-export default function BatchActions({ selectedIds, prompts, onClearSelection }: BatchActionsProps) {
+export default function BatchActions({ selectedIds, onClearSelection }: BatchActionsProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [actionType, setActionType] = useState<string>('');
@@ -26,8 +26,8 @@ export default function BatchActions({ selectedIds, prompts, onClearSelection }:
     }
 
     const confirmMessages = {
-      publish: `确定要将选中的 ${selectedIds.length} 个提示词设为"已发布"吗？`,
-      draft: `确定要将选中的 ${selectedIds.length} 个提示词设为"草稿"吗？`,
+      publish: `确定要将选中的 ${selectedIds.length} 个提示词设为“已发布”吗？`,
+      draft: `确定要将选中的 ${selectedIds.length} 个提示词设为“草稿”吗？`,
       delete: `确定要删除选中的 ${selectedIds.length} 个提示词吗？此操作不可恢复！`,
     };
 
@@ -57,6 +57,7 @@ export default function BatchActions({ selectedIds, prompts, onClearSelection }:
       router.refresh();
     } catch (error) {
       console.error('批量操作失败:', error);
+      alert('操作失败: ' + (error instanceof Error ? error.message : '未知错误'));
     } finally {
       setLoading(false);
       setActionType('');
@@ -116,6 +117,7 @@ export default function BatchActions({ selectedIds, prompts, onClearSelection }:
               </>
             )}
           </button>
+
 
           <button
             onClick={() => handleBatchAction('delete')}

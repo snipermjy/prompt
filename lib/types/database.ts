@@ -117,3 +117,85 @@ export interface CreateSeriesInput {
   description?: string;
 }
 
+// ============================================================================
+// 国际化翻译相关类型
+// ============================================================================
+
+// 支持的语言
+export type Locale = 'zh' | 'en';
+
+// 翻译状态
+export type TranslationStatus = 'pending' | 'ai_translated' | 'reviewed' | 'published';
+
+// 提示词翻译表
+export interface PromptTranslation {
+  id: string;
+  prompt_id: string;
+  locale: Locale;
+  title: string;
+  description?: string;
+  content: string;
+  tags?: string[]; // 翻译后的标签
+  use_cases?: string[]; // 翻译后的使用场景
+  prompt_type?: string[]; // 翻译后的提示词类型
+  translation_status: TranslationStatus;
+  translated_by?: string; // 'ai' or user_id
+  translated_at: string;
+  reviewed_by?: string;
+  reviewed_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// 分类翻译表
+export interface CategoryTranslation {
+  id: string;
+  category_id: string;
+  locale: Locale;
+  name: string;
+  description?: string;
+  translation_status: TranslationStatus;
+  translated_by?: string;
+  translated_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// 创建提示词翻译的输入类型
+export interface CreatePromptTranslationInput {
+  prompt_id: string;
+  locale: Locale;
+  title: string;
+  description?: string;
+  content: string;
+  tags?: string[]; // 翻译后的标签
+  use_cases?: string[]; // 翻译后的使用场景
+  prompt_type?: string[]; // 翻译后的提示词类型
+  translation_status?: TranslationStatus;
+  translated_by?: string;
+}
+
+// 创建分类翻译的输入类型
+export interface CreateCategoryTranslationInput {
+  category_id: string;
+  locale: Locale;
+  name: string;
+  description?: string;
+  translation_status?: TranslationStatus;
+  translated_by?: string;
+}
+
+// 带翻译的提示词（用于前端显示）
+export interface PromptWithTranslation extends Prompt {
+  // 如果是中文，这些字段来自 prompts 表
+  // 如果是英文，这些字段来自 prompt_translations 表
+  _locale?: Locale;
+  _translation_status?: TranslationStatus;
+}
+
+// 带翻译的分类（用于前端显示）
+export interface CategoryWithTranslation extends Category {
+  _locale?: Locale;
+  _translation_status?: TranslationStatus;
+}
+

@@ -7,7 +7,7 @@ interface Notification {
   type: string;
   title: string;
   message: string;
-  data?: any;
+  data?: unknown;
   is_read: boolean;
   created_at: string;
 }
@@ -166,7 +166,7 @@ export default function NotificationList({ initialNotifications }: NotificationL
                       <p className="text-sm text-gray-700 mb-2">{notification.message}</p>
                       
                       {/* 额外数据 */}
-                      {notification.data && (
+                      {notification.data != null && (
                         <details className="mt-2">
                           <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700">
                             查看详情

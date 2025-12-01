@@ -2,6 +2,8 @@ import { getCategories } from '@/app/actions/categories';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import CategoryManagement from './CategoryManagement';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
   title: '分类管理 - 管理后台',
   description: '管理AI提示词分类',

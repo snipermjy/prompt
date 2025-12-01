@@ -16,7 +16,7 @@ export function formatDate(date: string | Date, formatStr: string = 'yyyy年MM�
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     return format(dateObj, formatStr, { locale: zhCN });
-  } catch (error) {
+  } catch {
     console.error('Invalid date:', date);
     return '日期无效';
   }
@@ -35,7 +35,7 @@ export function formatRelativeTime(date: string | Date): string {
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     return formatDistanceToNow(dateObj, { addSuffix: true, locale: zhCN });
-  } catch (error) {
+  } catch {
     console.error('Invalid date:', date);
     return '日期无效';
   }

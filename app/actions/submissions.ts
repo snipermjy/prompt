@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
 import type { UserSubmission, CreateSubmissionInput } from '@/lib/types/database';
 
 /**

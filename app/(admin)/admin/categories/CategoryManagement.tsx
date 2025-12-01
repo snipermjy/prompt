@@ -221,7 +221,7 @@ export default function CategoryManagement({ initialCategories }: CategoryManage
         <MergeModal
           categories={categories.filter(c => selectedCategories.has(c.id))}
           onClose={() => setMergeModalOpen(false)}
-          onSuccess={(mergedCategory) => {
+          onSuccess={() => {
             // 刷新分类列表
             window.location.reload();
           }}

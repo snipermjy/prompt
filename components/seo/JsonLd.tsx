@@ -13,8 +13,8 @@ export function WebsiteJsonLd({ url }: WebsiteJsonLdProps) {
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: 'AI提示词库',
-    description: '收录各类优质AI提示词，涵盖ChatGPT、Claude、Midjourney等主流AI工具',
+    name: 'AI Prompt Library',
+    description: 'Curated collection of high-quality AI prompts for ChatGPT, Claude, Midjourney and more.',
     url: url,
     potentialAction: {
       '@type': 'SearchAction',
@@ -55,11 +55,11 @@ export function ArticleJsonLd({ prompt, url }: ArticleJsonLdProps) {
         }
       : {
           '@type': 'Organization',
-          name: 'AI提示词库',
+          name: 'AI Prompt Library',
         },
     publisher: {
       '@type': 'Organization',
-      name: 'AI提示词库',
+      name: 'AI Prompt Library',
     },
     keywords: [
       ...prompt.tags,

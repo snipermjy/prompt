@@ -1,8 +1,8 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import type { Prompt } from '@/lib/types/database';
-import { formatNumber } from '@/lib/utils/formatNumber';
+import type { Locale } from '@/i18n/config';
 
 /**
  * 提示词卡片组件
@@ -12,16 +12,20 @@ import { formatNumber } from '@/lib/utils/formatNumber';
 interface PromptCardProps {
   prompt: Prompt & { categoryName?: string };
   compact?: boolean; // 紧凑模式（用于相关推荐）
+  locale?: Locale; // 语言
 }
 
-export default function PromptCard({ prompt, compact = false }: PromptCardProps) {
+export default function PromptCard({ prompt, compact = false, locale }: PromptCardProps) {
   const router = useRouter();
+  const params = useParams();
+  const currentLocale = locale || (params.locale as Locale) || 'zh';
+  
   // 只显示前3个标签
   const displayTags = prompt.tags?.slice(0, 3) || [];
   const hasAuthor = !!(prompt.author_name && prompt.author_link);
   
   const handleCardClick = () => {
-    router.push(`/prompt/${prompt.id}`);
+    router.push(`/${currentLocale}/prompt/${prompt.id}`);
   };
   
   const handleAuthorClick = (e: React.MouseEvent) => {
@@ -51,7 +55,7 @@ export default function PromptCard({ prompt, compact = false }: PromptCardProps)
         <div
           onClick={handleAuthorClick}
           className="flex items-center gap-0.5 text-xs text-gray-500 hover:text-blue-600 transition-colors mb-2 flex-shrink-0 w-fit"
-          title="来源作者"
+          title="Author"
         >
           <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path

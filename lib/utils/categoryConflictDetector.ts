@@ -4,7 +4,6 @@
  */
 
 import { getCategories } from '@/app/actions/categories';
-import type { Category } from '@/lib/types/database';
 
 /**
  * 计算两个字符串的相似度（Levenshtein距离）

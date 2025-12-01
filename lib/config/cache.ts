@@ -50,7 +50,7 @@ export function getCacheHeaders(type: keyof typeof cacheConfig.pages) {
 /**
  * 浏览器缓存键生成
  */
-export function generateCacheKey(prefix: string, params: Record<string, any>): string {
+export function generateCacheKey(prefix: string, params: Record<string, unknown>): string {
   const sortedParams = Object.keys(params)
     .sort()
     .map(key => `${key}=${params[key]}`)

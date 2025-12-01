@@ -3,7 +3,6 @@ import { getPrompts } from '@/app/actions/prompts';
 import { getSubmissions } from '@/app/actions/submissions';
 import { getCategoriesWithCount } from '@/app/actions/categories';
 import { formatNumber } from '@/lib/utils/formatNumber';
-import { formatRelativeTime } from '@/lib/utils/formatDate';
 import { statusConfig } from '@/lib/config/site';
 
 /**

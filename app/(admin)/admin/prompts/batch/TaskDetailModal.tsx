@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { BatchTask } from '@/lib/types/batch';
 import Modal, { ModalBody } from '@/components/ui/Modal';
+import { formatPromptContent } from '@/lib/utils/formatContent';
 
 interface TaskDetailModalProps {
   task: BatchTask;
@@ -21,7 +22,6 @@ export default function TaskDetailModal({ task, isOpen, onClose }: TaskDetailMod
   // 格式化内容
   const getFormattedContent = () => {
     try {
-      const { formatPromptContent } = require('@/lib/utils/formatContent');
       const formatted = formatPromptContent(task.content);
       // 仅在开发环境输出日志
       if (process.env.NODE_ENV === 'development') {

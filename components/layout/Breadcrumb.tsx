@@ -1,4 +1,8 @@
+"use client";
+
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 
 /**
  * 面包屑导航组件
@@ -14,10 +18,14 @@ interface BreadcrumbProps {
 }
 
 export default function Breadcrumb({ items }: BreadcrumbProps) {
+  const params = useParams();
+  const locale = (params?.locale as string) || 'zh';
+  const tNav = useTranslations('nav');
+
   return (
     <nav className="flex items-center gap-2 text-sm text-gray-600 mb-6">
-      <Link href="/" className="hover:text-blue-600 transition-colors">
-        首页
+      <Link href={`/${locale}`} className="hover:text-blue-600 transition-colors">
+        {tNav('home')}
       </Link>
       {items.map((item, index) => (
         <div key={index} className="flex items-center gap-2">

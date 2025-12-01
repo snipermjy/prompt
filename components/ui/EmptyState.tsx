@@ -70,7 +70,17 @@ export default function EmptyState({ icon, title, description, action, className
  */
 
 // 无数据
-export function NoDataState({ actionLabel = '添加数据', actionHref }: { actionLabel?: string; actionHref?: string }) {
+export function NoDataState({ 
+  title = 'No data',
+  description = 'No content yet, be the first to add one!',
+  actionLabel, 
+  actionHref 
+}: { 
+  title?: string;
+  description?: string;
+  actionLabel?: string; 
+  actionHref?: string;
+}) {
   return (
     <EmptyState
       icon={
@@ -83,15 +93,27 @@ export function NoDataState({ actionLabel = '添加数据', actionHref }: { acti
           />
         </svg>
       }
-      title="暂无数据"
-      description="这里还没有任何内容，快来添加第一个吧！"
-      action={actionHref ? { label: actionLabel, href: actionHref } : undefined}
+      title={title}
+      description={description}
+      action={actionHref ? { label: actionLabel || 'Add', href: actionHref } : undefined}
     />
   );
 }
 
 // 搜索无结果
-export function NoSearchResultsState({ query, onReset }: { query?: string; onReset?: () => void }) {
+export function NoSearchResultsState({ 
+  query, 
+  onReset,
+  title = 'No results found',
+  description = 'Try different keywords or adjust filters',
+  resetLabel = 'Clear filters'
+}: { 
+  query?: string; 
+  onReset?: () => void;
+  title?: string;
+  description?: string;
+  resetLabel?: string;
+}) {
   return (
     <EmptyState
       icon={
@@ -104,15 +126,25 @@ export function NoSearchResultsState({ query, onReset }: { query?: string; onRes
           />
         </svg>
       }
-      title={query ? `没有找到"${query}"相关的结果` : '没有找到相关结果'}
-      description="尝试使用其他关键词，或者调整筛选条件"
-      action={onReset ? { label: '清除筛选', onClick: onReset } : undefined}
+      title={query ? `${title} "${query}"` : title}
+      description={description}
+      action={onReset ? { label: resetLabel, onClick: onReset } : undefined}
     />
   );
 }
 
 // 错误状态
-export function ErrorState({ message, onRetry }: { message?: string; onRetry?: () => void }) {
+export function ErrorState({ 
+  message, 
+  onRetry,
+  title = 'Error',
+  retryLabel = 'Retry'
+}: { 
+  message?: string; 
+  onRetry?: () => void;
+  title?: string;
+  retryLabel?: string;
+}) {
   return (
     <EmptyState
       icon={
@@ -125,15 +157,23 @@ export function ErrorState({ message, onRetry }: { message?: string; onRetry?: (
           />
         </svg>
       }
-      title="加载失败"
-      description={message || '数据加载出错，请稍后重试'}
-      action={onRetry ? { label: '重新加载', onClick: onRetry } : undefined}
+      title={title}
+      description={message || 'Failed to load data, please try again later'}
+      action={onRetry ? { label: retryLabel, onClick: onRetry } : undefined}
     />
   );
 }
 
 // 无收藏
-export function NoFavoritesState() {
+export function NoFavoritesState({
+  title = 'No favorites yet',
+  description = 'Found a prompt you like? Click ❤️ to save it!',
+  browseLabel = 'Browse prompts'
+}: {
+  title?: string;
+  description?: string;
+  browseLabel?: string;
+} = {}) {
   return (
     <EmptyState
       icon={
@@ -146,9 +186,9 @@ export function NoFavoritesState() {
           />
         </svg>
       }
-      title="还没有收藏"
-      description="发现喜欢的提示词？快点击❤️收藏吧！"
-      action={{ label: '浏览提示词', href: '/' }}
+      title={title}
+      description={description}
+      action={{ label: browseLabel, href: '/' }}
     />
   );
 }

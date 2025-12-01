@@ -92,10 +92,8 @@ export async function generateMetadata(
   content: string,
   existingCategories: Category[]
 ): Promise<AIGeneratedMetadata> {
-  // 构建现有分类列表供 AI 参考
-  const categoryList = existingCategories
-    .map((cat) => `- ${cat.name} (${cat.slug}): ${cat.description || ''}`)
-    .join('\n');
+  // 当前实现未直接使用 existingCategories，但保留参数以便未来扩展分类参考逻辑
+  void existingCategories;
 
   // 构建二级分类结构说明
   const categoryStructure = `

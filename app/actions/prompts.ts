@@ -234,7 +234,10 @@ export async function incrementShareCount(id: string): Promise<{ success: boolea
  * @param input - 提示词输入数据
  * @returns 创建的提示词
  */
-export async function createPrompt(input: CreatePromptInput): Promise<Prompt | null> {
+export async function createPrompt(
+  input: CreatePromptInput,
+  preTranslation?: { title: string; description: string; content: string; tags?: string[]; use_cases?: string[]; prompt_type?: string[] }
+): Promise<Prompt | null> {
   try {
     // 导入格式化函数
     const { formatPromptContent } = await import('@/lib/utils/formatContent');
@@ -261,6 +264,48 @@ export async function createPrompt(input: CreatePromptInput): Promise<Prompt | n
     }
     
     console.log('Prompt created successfully:', data);
+    
+    // 如果有预翻译结果，直接使用；否则同步翻译
+    try {
+      const { upsertPromptTranslation } = await import('@/app/actions/translations');
+      
+      let translation;
+      if (preTranslation) {
+        console.log('使用预翻译结果:', data.id);
+        translation = preTranslation;
+      } else {
+        const { translateToEnglish } = await import('@/lib/ai/translate');
+        console.log('开始翻译提示词:', data.id);
+        translation = await translateToEnglish(
+          formattedInput.title || '',
+          formattedInput.description || '',
+          formattedInput.content,
+          formattedInput.tags || [],
+          formattedInput.use_cases || [],
+          formattedInput.prompt_type || []
+        );
+        console.log('翻译结果:', translation);
+      }
+      
+      await upsertPromptTranslation({
+        prompt_id: data.id,
+        locale: 'en',
+        title: translation.title,
+        description: translation.description,
+        content: translation.content,
+        tags: translation.tags || formattedInput.tags,
+        use_cases: translation.use_cases || formattedInput.use_cases,
+        prompt_type: translation.prompt_type || formattedInput.prompt_type,
+        translation_status: 'ai_translated',
+        translated_by: 'ai',
+      });
+      
+      console.log('提示词翻译成功:', data.id);
+    } catch (translationError) {
+      console.error('翻译失败:', data.id, translationError);
+      // 翻译失败不影响提示词创建
+    }
+    
     return data as Prompt;
   } catch (error) {
     console.error('Error in createPrompt:', error);
@@ -412,7 +457,7 @@ export async function checkDuplicates(
     }
 
     // 第二步：候选筛选（标题相似或内容前缀相似）
-    let candidates: Prompt[] = [];
+    const candidates: Prompt[] = [];
     
     // 如果提供了标题，先查找标题相同或相似的
     if (title) {
