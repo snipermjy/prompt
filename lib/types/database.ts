@@ -43,7 +43,9 @@ export interface Category {
   slug: string;
   icon: string;
   description?: string;
+  parent_category?: string; // 一级分类名称
   display_order: number;
+  last_updated_at?: string; // 最后更新时间
   created_at: string;
 }
 

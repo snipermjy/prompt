@@ -58,8 +58,8 @@ export default function LoadMore({
 
   return (
     <>
-      {/* 提示词卡片网格 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+      {/* 提示词卡片网格 - 自适应布局 */}
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
         {prompts.map((prompt) => (
           <PromptCard key={prompt.id} prompt={prompt} />
         ))}

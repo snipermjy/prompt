@@ -146,18 +146,19 @@ body {
   @apply shadow-lg -translate-y-1;
 }
 
-/* 提示词卡片样式 */
+/* 提示词卡片样式 - 优化后 */
 .prompt-card {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  height: 135px;
+  height: 140px;
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* 防止内容溢出 */
+  overflow: hidden;
+  border-radius: 0.75rem;
 }
 
 .prompt-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 20px 25px -5px rgba(59, 130, 246, 0.1), 0 10px 10px -5px rgba(59, 130, 246, 0.04);
+  box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.15);
 }
 
 .prompt-card:active {
@@ -270,5 +271,35 @@ body {
 /* 主内容区动画 */
 main {
   animation: page-fade-in 0.4s ease-out;
+}
+
+/* 分类导航样式 */
+.category-pill {
+  transition: all 0.2s ease;
+}
+
+.category-pill:hover {
+  transform: scale(1.05);
+}
+
+/* 自适应网格布局 */
+@supports (grid-template-columns: repeat(auto-fill, minmax(280px, 1fr))) {
+  .auto-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+  }
+}
+
+/* 移动端优化 */
+@media (max-width: 640px) {
+  .prompt-card {
+    height: auto;
+    min-height: 120px;
+  }
+  
+  .auto-grid {
+    grid-template-columns: 1fr;
+  }
 }
 

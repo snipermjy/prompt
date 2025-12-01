@@ -91,7 +91,7 @@ export default async function PromptDetailPage({ params }: PageProps) {
           { name: prompt.title, url: promptUrl },
         ]}
       />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-[1920px] mx-auto px-4 md:px-6 py-6">
         {/* 浏览量追踪组件 */}
         <ViewTracker promptId={id} />
         {/* 面包屑导航 */}
@@ -140,51 +140,6 @@ export default async function PromptDetailPage({ params }: PageProps) {
           </div>
         </div>
         
-        {/* 语言、提示词类型、使用场景、标签 */}
-        <div className="space-y-2 mb-3 pb-3 border-b border-gray-100">
-          {/* 语言 */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-block px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded">
-              {language.flag} {language.label}
-            </span>
-          </div>
-          
-          {/* 提示词类型 */}
-          {prompt.prompt_type && prompt.prompt_type.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-gray-600 font-medium">类型：</span>
-              {prompt.prompt_type.map((type, index) => (
-                <span key={index} className="inline-block px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded">
-                  {type}
-                </span>
-              ))}
-            </div>
-          )}
-          
-          {/* 使用场景 */}
-          {prompt.use_cases && prompt.use_cases.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-gray-600 font-medium">场景：</span>
-              {prompt.use_cases.map((useCase, index) => (
-                <span key={index} className="inline-block px-2 py-0.5 bg-green-50 text-green-700 text-xs rounded">
-                  {useCase}
-                </span>
-              ))}
-            </div>
-          )}
-          
-          {/* 标签 */}
-          {prompt.tags && prompt.tags.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-gray-600 font-medium">标签：</span>
-              {prompt.tags.map((tag, index) => (
-                <span key={index} className="inline-block px-2 py-0.5 bg-purple-50 text-purple-700 text-xs rounded">
-                  #{tag}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
         
         {/* 描述 */}
         {prompt.description && (
@@ -236,10 +191,73 @@ export default async function PromptDetailPage({ params }: PageProps) {
           </div>
         </div>
         
-        {/* 右侧：相关推荐 */}
+        {/* 右侧：元数据和相关推荐 */}
         <div className="w-full lg:w-80 flex-shrink-0">
-          <div className="sticky top-24">
-            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 mb-3">
+          <div className="sticky top-24 space-y-3">
+            {/* 提示词元数据板块 */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+                <h2 className="text-base font-semibold text-gray-900">提示词信息</h2>
+              </div>
+              
+              <div className="space-y-3">
+                {/* 语言 */}
+                <div>
+                  <div className="text-xs text-gray-500 mb-1.5">语言</div>
+                  <span className="inline-block px-2 py-1 bg-gray-50 text-gray-700 text-sm rounded">
+                    {language.flag} {language.label}
+                  </span>
+                </div>
+                
+                {/* 提示词类型 */}
+                {prompt.prompt_type && prompt.prompt_type.length > 0 && (
+                  <div>
+                    <div className="text-xs text-gray-500 mb-1.5">类型</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {prompt.prompt_type.map((type, index) => (
+                        <span key={index} className="inline-block px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded">
+                          {type}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* 使用场景 */}
+                {prompt.use_cases && prompt.use_cases.length > 0 && (
+                  <div>
+                    <div className="text-xs text-gray-500 mb-1.5">使用场景</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {prompt.use_cases.map((useCase, index) => (
+                        <span key={index} className="inline-block px-2 py-1 bg-green-50 text-green-700 text-xs rounded">
+                          {useCase}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* 标签 */}
+                {prompt.tags && prompt.tags.length > 0 && (
+                  <div>
+                    <div className="text-xs text-gray-500 mb-1.5">标签</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {prompt.tags.map((tag, index) => (
+                        <span key={index} className="inline-block px-2 py-1 bg-purple-50 text-purple-700 text-xs rounded">
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* 相关推荐板块 */}
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-3">
                 <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -258,6 +276,7 @@ export default async function PromptDetailPage({ params }: PageProps) {
                 </p>
               )}
             </div>
+            
             {/* 返回按钮 */}
             <BackButton />
           </div>

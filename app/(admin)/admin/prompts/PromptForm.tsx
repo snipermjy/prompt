@@ -206,18 +206,32 @@ export default function PromptForm({ categories, initialData }: PromptFormProps)
         setAiProgress(85);
         await new Promise(resolve => setTimeout(resolve, 200));
         
-        // 处理分类：如果是现有分类的 slug，直接使用；如果是新分类名，查找匹配或保留原值
+        // 处理分类：支持二级分类
         if (metadata.category) {
-          const existingCategory = categories.find(
-            (cat) => cat.slug === metadata.category || cat.name === metadata.category
+          // 优先匹配 category_slug
+          let existingCategory = categories.find(
+            (cat) => cat.slug === metadata.category_slug
           );
+          
+          // 如果没找到，尝试匹配分类名称
+          if (!existingCategory) {
+            existingCategory = categories.find(
+              (cat) => cat.name === metadata.category
+            );
+          }
+          
           if (existingCategory) {
             setCategory(existingCategory.slug);
-          } else {
-            // AI 建议了新分类，提示用户
             setMessage({
               type: 'success',
-              text: `AI 建议新分类"${metadata.category}"，但当前分类列表中不存在。请手动选择相近的分类。`,
+              text: `AI 已匹配到分类"${existingCategory.name}"${metadata.parent_category ? `（${metadata.parent_category}）` : ''}`,
+            });
+          } else {
+            // AI 建议了新分类
+            const parentInfo = metadata.parent_category ? `（属于${metadata.parent_category}）` : '';
+            setMessage({
+              type: 'success',
+              text: `AI 建议新分类"${metadata.category}"${parentInfo}，将自动创建。如不合适，请手动选择其他分类。`,
             });
           }
         }

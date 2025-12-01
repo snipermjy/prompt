@@ -17,6 +17,20 @@ export default function FilterBar({ categories }: FilterBarProps) {
   const category = searchParams.get('category') || '';
   const status = searchParams.get('status') || '';
 
+  // 按一级分类分组
+  const categoryTree: { [key: string]: Category[] } = {};
+  categories.forEach(cat => {
+    const parent = cat.parent_category || '其他';
+    if (!categoryTree[parent]) {
+      categoryTree[parent] = [];
+    }
+    categoryTree[parent].push(cat);
+  });
+
+  // 一级分类顺序
+  const parentOrder = ['内容创作', '技术开发', '商业运营', '效率工具', 'AI应用', '其他'];
+  const sortedParents = parentOrder.filter(p => categoryTree[p]);
+
   const handleCategoryChange = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());
     if (value) {
@@ -40,7 +54,7 @@ export default function FilterBar({ categories }: FilterBarProps) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
       <div className="flex flex-wrap items-center gap-4">
-        {/* 分类筛选 */}
+        {/* 分类筛选（按一级分类分组） */}
         <div>
           <label className="text-sm font-medium text-gray-700 mb-2 block">分类筛选</label>
           <select
@@ -49,10 +63,14 @@ export default function FilterBar({ categories }: FilterBarProps) {
             onChange={(e) => handleCategoryChange(e.target.value)}
           >
             <option value="">全部分类</option>
-            {categories.map((cat) => (
-              <option key={cat.id} value={cat.slug}>
-                {cat.icon} {cat.name}
-              </option>
+            {sortedParents.map(parent => (
+              <optgroup key={parent} label={parent}>
+                {categoryTree[parent].map((cat) => (
+                  <option key={cat.id} value={cat.slug}>
+                    {cat.icon} {cat.name}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </div>

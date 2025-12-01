@@ -63,6 +63,9 @@ export default function BatchAddPage() {
     tasksRef.current = tasks;
     if (tasks.length > 0) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    } else {
+      // 如果任务列表为空，清除localStorage
+      localStorage.removeItem(STORAGE_KEY);
     }
   }, [tasks]);
 
@@ -164,8 +167,8 @@ export default function BatchAddPage() {
     let isTimedOut = false;
 
     try {
-      // 设置超时（30秒）- 缩短超时时间以便快速发现问题
-      debugLog(`[${taskId}] 设置30秒超时计时器 (processTaskWithAI)`);
+      // 设置超时（60秒）
+      debugLog(`[${taskId}] 设置60秒超时计时器 (processTaskWithAI)`);
       const startTime = Date.now();
       const timeoutId = setTimeout(() => {
         const elapsed = Date.now() - startTime;
@@ -178,9 +181,9 @@ export default function BatchAddPage() {
           status: 'error',
           progress: 0,
           progressText: '处理超时',
-          error: 'AI处理超时（30秒），请重试或检查网络连接。如果持续超时，可能是AI服务繁忙。',
+          error: 'AI处理超时（60秒），请重试或检查网络连接。如果持续超时，可能是AI服务繁忙。',
         });
-      }, 30000); // 改为30秒
+      }, 60000); // 60秒超时
       
       timeoutsRef.current.set(taskId, timeoutId);
 
@@ -280,7 +283,7 @@ export default function BatchAddPage() {
     updateTask(taskId, {
       status: 'processing',
       progress: 5,
-      progressText: '检查内容重复...',
+      progressText: '正在连接AI服务...',
     });
 
     // 清理旧的controller和timeout
@@ -301,37 +304,14 @@ export default function BatchAddPage() {
     let isTimedOut = false;
     
     try {
-      // 第一步：先检查重复
-      const duplicates = await checkDuplicates(taskContent);
-      
-      if (duplicates.length > 0) {
-        // 发现重复，标记为待确认状态
-        updateTask(taskId, {
-          status: 'success',
-          progress: 100,
-          progressText: `发现${duplicates.length}个重复项，等待确认`,
-          result: {
-            title: '（待确认 - 发现重复）',
-            description: '',
-            category: '',
-            tags: [],
-            prompt_type: [],
-            use_cases: [],
-            language: 'zh-CN',
-            duplicates: duplicates,
-          },
-        });
-        return;
-      }
-
-      // 没有重复，继续AI分析
+      // 直接开始AI分析，不做前置重复检测（提高速度）
       updateTask(taskId, {
         progress: 10,
         progressText: '正在连接AI服务...',
       });
 
-      // 设置超时（30秒）- 缩短超时时间以便快速发现问题
-      debugLog(`[${taskId}] 设置30秒超时计时器 (processTask)`);
+      // 设置超时（60秒）
+      debugLog(`[${taskId}] 设置60秒超时计时器 (processTask)`);
       const startTime = Date.now();
       const timeoutId = setTimeout(() => {
         const elapsed = Date.now() - startTime;
@@ -344,9 +324,9 @@ export default function BatchAddPage() {
           status: 'error',
           progress: 0,
           progressText: '处理超时',
-          error: 'AI处理超时（30秒），请重试或检查网络连接。如果持续超时，可能是AI服务繁忙。',
+          error: 'AI处理超时（60秒），请重试或检查网络连接。如果持续超时，可能是AI服务繁忙。',
         });
-      }, 30000); // 改为30秒
+      }, 60000); // 60秒超时
       
       timeoutsRef.current.set(taskId, timeoutId);
 
@@ -465,6 +445,21 @@ export default function BatchAddPage() {
 
   // 删除任务
   const handleDelete = (taskId: string) => {
+    // 如果任务正在处理中，取消请求
+    const controller = abortControllersRef.current.get(taskId);
+    if (controller) {
+      controller.abort();
+      abortControllersRef.current.delete(taskId);
+    }
+    
+    // 清理超时计时器
+    const timeout = timeoutsRef.current.get(taskId);
+    if (timeout) {
+      clearTimeout(timeout);
+      timeoutsRef.current.delete(taskId);
+    }
+    
+    // 从任务列表中移除
     setTasks(prev => prev.filter(t => t.id !== taskId));
   };
 
@@ -578,10 +573,11 @@ export default function BatchAddPage() {
           const aiSlug = task.result.category_slug || aiCategory.toLowerCase().replace(/\s+/g, '-');
           const aiDescription = task.result.category_description || `${aiCategory}相关的提示词`;
           const aiIcon = task.result.category_icon || '📁';
+          const aiParentCategory = task.result.parent_category; // 获取一级分类
           
-          // 自动创建新分类
+          // 自动创建新分类（包含一级分类）
           const { createCategory } = await import('@/app/actions/categories');
-          const newCategory = await createCategory(aiCategory, aiSlug, aiDescription, aiIcon);
+          const newCategory = await createCategory(aiCategory, aiSlug, aiDescription, aiIcon, aiParentCategory);
           
           if (newCategory) {
             categorySlug = newCategory.slug;
@@ -655,6 +651,20 @@ export default function BatchAddPage() {
   // 清空所有任务
   const handleClearAll = () => {
     if (!confirm('确定要清空所有任务吗？')) return;
+    
+    // 取消所有进行中的请求
+    abortControllersRef.current.forEach((controller) => {
+      controller.abort();
+    });
+    abortControllersRef.current.clear();
+    
+    // 清理所有超时计时器
+    timeoutsRef.current.forEach((timeout) => {
+      clearTimeout(timeout);
+    });
+    timeoutsRef.current.clear();
+    
+    // 清空任务列表和localStorage
     setTasks([]);
     tasksRef.current = [];
     localStorage.removeItem(STORAGE_KEY);

@@ -34,10 +34,10 @@ export default function PromptCard({ prompt, compact = false }: PromptCardProps)
   return (
     <div
       onClick={handleCardClick}
-      className={`prompt-card bg-white rounded-lg border border-gray-200 px-3 pt-4 pb-3 cursor-pointer flex flex-col relative group ${
+      className={`prompt-card bg-white rounded-xl border border-gray-200 px-4 pt-4 pb-3 cursor-pointer flex flex-col relative group transition-all hover:shadow-lg hover:-translate-y-1 ${
         compact ? '' : ''
       }`}
-      style={{ height: compact ? 'auto' : '135px' }}
+      style={{ height: compact ? 'auto' : '140px' }}
     >
       {/* 标题 */}
       <div className="mb-1 flex-shrink-0">

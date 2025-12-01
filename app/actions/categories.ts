@@ -7,17 +7,34 @@ import type { Category } from '@/lib/types/database';
  * 获取所有分类
  * 
  * @param useStaticClient - 是否使用静态客户端（用于 sitemap 等静态生成场景，默认false）
+ * @param sortBy - 排序方式：'display_order' | 'last_updated' | 'name'（默认按最新更新时间）
  * @returns 分类数组
  */
-export async function getCategories(useStaticClient: boolean = false): Promise<Category[]> {
+export async function getCategories(
+  useStaticClient: boolean = false,
+  sortBy: 'display_order' | 'last_updated' | 'name' = 'last_updated'
+): Promise<Category[]> {
   try {
     const { createAdminClient } = await import('@/lib/supabase/server');
     const supabase = useStaticClient ? createAdminClient() : await createClient();
     
-    const { data, error } = await supabase
-      .from('categories')
-      .select('*')
-      .order('display_order', { ascending: true });
+    let query = supabase.from('categories').select('*');
+    
+    // 根据排序方式选择
+    switch (sortBy) {
+      case 'last_updated':
+        query = query.order('last_updated_at', { ascending: false, nullsFirst: false });
+        break;
+      case 'name':
+        query = query.order('name', { ascending: true });
+        break;
+      case 'display_order':
+      default:
+        query = query.order('display_order', { ascending: true });
+        break;
+    }
+    
+    const { data, error } = await query;
     
     if (error) {
       console.error('Failed to fetch categories:', error);
@@ -60,6 +77,34 @@ export async function getCategoryBySlug(slug: string): Promise<Category | null> 
   } catch (error) {
     console.error('Error in getCategoryBySlug:', error);
     return null;
+  }
+}
+
+/**
+ * 获取分类树结构（一级分类 + 二级分类）
+ * 
+ * @returns 分类树结构
+ */
+export async function getCategoryTree(): Promise<Map<string, Category[]>> {
+  try {
+    const categories = await getCategories(false, 'last_updated');
+    const tree = new Map<string, Category[]>();
+    
+    // 按一级分类分组
+    for (const category of categories) {
+      const parentCategory = category.parent_category || '其他';
+      
+      if (!tree.has(parentCategory)) {
+        tree.set(parentCategory, []);
+      }
+      
+      tree.get(parentCategory)!.push(category);
+    }
+    
+    return tree;
+  } catch (error) {
+    console.error('Error in getCategoryTree:', error);
+    return new Map();
   }
 }
 
@@ -113,19 +158,52 @@ export async function getCategoriesWithCount(): Promise<(Category & { prompt_cou
  * @param slug - 分类slug
  * @param description - 分类描述
  * @param icon - 分类图标（emoji）
+ * @param parentCategory - 一级分类名称
  * @returns 创建的分类
  */
 export async function createCategory(
   name: string,
   slug: string,
   description?: string,
-  icon?: string
+  icon?: string,
+  parentCategory?: string
 ): Promise<Category | null> {
   try {
     const { createAdminClient } = await import('@/lib/supabase/server');
     const supabase = createAdminClient();
     
-    // 检查slug是否已存在
+    // 1. 检测分类名称冲突
+    const { detectCategoryConflict } = await import('@/lib/utils/categoryConflictDetector');
+    const conflictResult = await detectCategoryConflict(name);
+    
+    if (conflictResult.hasConflict) {
+      console.warn('⚠️ 分类冲突检测:', conflictResult.suggestion);
+      
+      // 发送通知到管理后台
+      const { notifyAdmin } = await import('@/lib/utils/adminNotification');
+      await notifyAdmin({
+        type: 'category_conflict',
+        message: conflictResult.suggestion,
+        data: {
+          newCategory: name,
+          newSlug: slug,
+          similarCategories: conflictResult.similarCategories
+        }
+      });
+      
+      // 如果相似度非常高（>95%），直接使用现有分类
+      if (conflictResult.similarCategories[0]?.similarity > 0.95) {
+        console.log(`使用现有分类: ${conflictResult.similarCategories[0].name}`);
+        const { data: existingCategory } = await supabase
+          .from('categories')
+          .select('*')
+          .eq('slug', conflictResult.similarCategories[0].slug)
+          .single();
+        return existingCategory as Category;
+      }
+    }
+    
+    // 2. 检查slug是否已存在
     const { data: existing } = await supabase
       .from('categories')
       .select('id')
@@ -137,7 +215,7 @@ export async function createCategory(
       return null;
     }
     
-    // 获取最大display_order
+    // 3. 获取最大display_order
     const { data: maxOrder } = await supabase
       .from('categories')
       .select('display_order')
@@ -147,15 +225,17 @@ export async function createCategory(
     
     const displayOrder = (maxOrder?.display_order || 0) + 1;
     
-    // 创建新分类
+    // 4. 创建新分类
     const { data, error } = await supabase
       .from('categories')
       .insert([{
         name,
         slug,
         description: description || `${name}相关的提示词`,
-        icon: icon || '📁', // 使用AI生成的图标或默认图标
+        icon: icon || '📁',
+        parent_category: parentCategory || null,
         display_order: displayOrder,
+        last_updated_at: new Date().toISOString()
       }])
       .select()
       .single();
@@ -164,6 +244,18 @@ export async function createCategory(
       console.error('Failed to create category:', error);
       throw new Error(`Failed to create category: ${error.message}`);
     }
+    
+    // 5. 发送新分类创建通知
+    const { notifyAdmin } = await import('@/lib/utils/adminNotification');
+    await notifyAdmin({
+      type: 'new_category',
+      message: `AI创建了新分类"${name}"${parentCategory ? `（属于${parentCategory}）` : ''}`,
+      data: {
+        categoryName: name,
+        categorySlug: slug,
+        parentCategory: parentCategory
+      }
+    });
     
     console.log(`✅ Created new category: ${name} (${slug})`);
     return data as Category;

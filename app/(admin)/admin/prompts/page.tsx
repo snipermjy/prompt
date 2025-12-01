@@ -60,7 +60,7 @@ export default async function PromptsManagePage({ searchParams }: PageProps) {
       <FilterBar categories={categories} />
 
       {/* 提示词表格（支持批量选择） */}
-      <PromptsTable prompts={filteredPrompts} />
+      <PromptsTable prompts={filteredPrompts} categories={categories} />
     </div>
   );
 }

@@ -50,51 +50,53 @@ export default async function SearchPage({ searchParams }: PageProps) {
   }));
   
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* 面包屑导航 */}
-      <Breadcrumb
-        items={[
-          { label: '搜索结果' },
-        ]}
-      />
-      
-      {/* 搜索关键词显示 */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          {keyword ? (
-            <>
-              搜索: <span className="text-blue-600">{keyword}</span>
-            </>
-          ) : (
-            '搜索提示词'
-          )}
-        </h1>
-        {keyword && (
-          <p className="text-gray-600">找到 {promptsWithCategoryName.length} 个相关提示词</p>
-        )}
-      </div>
-      
-      {/* 搜索结果 */}
-      {!keyword ? (
-        <EmptyState
-          icon={
-            <svg className="w-20 h-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          }
-          title="请输入搜索关键词"
-          description="在顶部搜索框输入关键词，查找你需要的提示词"
-          action={{ label: '浏览全部', href: '/' }}
+    <div className="max-w-[1920px] mx-auto">
+      <main className="p-4 md:p-6">
+        {/* 面包屑导航 */}
+        <Breadcrumb
+          items={[
+            { label: '搜索结果' },
+          ]}
         />
-      ) : promptsWithCategoryName.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-          {promptsWithCategoryName.map((prompt) => (
-            <PromptCard key={prompt.id} prompt={prompt} />
-          ))}
+        
+        {/* 搜索关键词显示 */}
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            {keyword ? (
+              <>
+                搜索: <span className="text-blue-600">{keyword}</span>
+              </>
+            ) : (
+              '搜索提示词'
+            )}
+          </h1>
+          {keyword && (
+            <p className="text-gray-600">找到 {promptsWithCategoryName.length} 个相关提示词</p>
+          )}
         </div>
-      ) : (
-        <NoSearchResultsState query={keyword} />
-      )}
+        
+        {/* 搜索结果 - 自适应网格 */}
+        {!keyword ? (
+          <EmptyState
+            icon={
+              <svg className="w-20 h-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            }
+            title="请输入搜索关键词"
+            description="在顶部搜索框输入关键词，查找你需要的提示词"
+            action={{ label: '浏览全部', href: '/' }}
+          />
+        ) : promptsWithCategoryName.length > 0 ? (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
+            {promptsWithCategoryName.map((prompt) => (
+              <PromptCard key={prompt.id} prompt={prompt} />
+            ))}
+          </div>
+        ) : (
+          <NoSearchResultsState query={keyword} />
+        )}
+      </main>
     </div>
   );
 }

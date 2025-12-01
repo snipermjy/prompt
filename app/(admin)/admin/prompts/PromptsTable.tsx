@@ -7,7 +7,7 @@ import { formatDate } from '@/lib/utils/formatDate';
 import { statusConfig } from '@/lib/config/site';
 import DeleteButton from './DeleteButton';
 import BatchActions from './BatchActions';
-import type { Prompt } from '@/lib/types/database';
+import type { Prompt, Category } from '@/lib/types/database';
 
 /**
  * 提示词表格组件（客户端组件，支持批量选择）
@@ -15,9 +15,14 @@ import type { Prompt } from '@/lib/types/database';
 
 interface PromptsTableProps {
   prompts: Prompt[];
+  categories: Category[];
 }
 
-export default function PromptsTable({ prompts }: PromptsTableProps) {
+export default function PromptsTable({ prompts, categories }: PromptsTableProps) {
+  // 根据slug查找分类
+  const getCategoryBySlug = (slug: string) => {
+    return categories.find(cat => cat.slug === slug);
+  };
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // 全选/取消全选
@@ -100,9 +105,27 @@ export default function PromptsTable({ prompts }: PromptsTableProps) {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="inline-block px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded">
-                      {prompt.category}
-                    </span>
+                    {(() => {
+                      const category = getCategoryBySlug(prompt.category);
+                      return category ? (
+                        <div className="flex flex-col gap-1">
+                          {/* 一级分类 */}
+                          {category.parent_category && (
+                            <span className="inline-block px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded w-fit">
+                              {category.parent_category}
+                            </span>
+                          )}
+                          {/* 二级分类 */}
+                          <span className="inline-block px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded w-fit">
+                            {category.icon} {category.name}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="inline-block px-2 py-1 bg-gray-50 text-gray-700 text-xs rounded">
+                          {prompt.category}
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`inline-block px-2 py-1 text-xs rounded ${statusConfig[prompt.status].bgColor} ${statusConfig[prompt.status].color}`}>

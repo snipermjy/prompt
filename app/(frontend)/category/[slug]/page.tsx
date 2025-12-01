@@ -1,9 +1,10 @@
 import { notFound } from 'next/navigation';
-import { getCategoryBySlug } from '@/app/actions/categories';
+import { getCategoryBySlug, getCategoriesWithCount } from '@/app/actions/categories';
 import { getPrompts } from '@/app/actions/prompts';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import PromptCard from '@/components/features/PromptCard';
 import EmptyState from '@/components/ui/EmptyState';
+import CategoryNav from '@/components/layout/CategoryNav';
 
 /**
  * 分类页面
@@ -42,12 +43,18 @@ export async function generateMetadata({ params }: PageProps) {
 export default async function CategoryPage({ params }: PageProps) {
   const { slug } = await params;
   
-  // 获取分类信息
-  const category = await getCategoryBySlug(slug);
+  // 获取分类信息和所有分类列表
+  const [category, allCategories] = await Promise.all([
+    getCategoryBySlug(slug),
+    getCategoriesWithCount(),
+  ]);
   
   if (!category) {
     notFound();
   }
+  
+  // 只显示有提示词的分类
+  const categories = allCategories.filter(cat => cat.prompt_count > 0);
   
   // 获取该分类下的提示词
   const prompts = await getPrompts(slug, 100);
@@ -59,42 +66,50 @@ export default async function CategoryPage({ params }: PageProps) {
   }));
   
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* 面包屑导航 */}
-      <Breadcrumb
-        items={[
-          { label: '分类', href: '/' },
-          { label: category.name },
-        ]}
-      />
+    <>
+      {/* 顶部分类导航 */}
+      <CategoryNav categories={categories} totalCount={prompts.length} />
       
-      {/* 分类标题 */}
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-3">
-          <span className="text-4xl">{category.icon}</span>
-          <h1 className="text-3xl font-bold text-gray-900">{category.name}</h1>
-        </div>
-        {category.description && (
-          <p className="text-gray-600">{category.description}</p>
-        )}
-        <p className="text-sm text-gray-500 mt-2">共 {prompts.length} 个提示词</p>
+      {/* 主内容区 - 全宽布局 */}
+      <div className="max-w-[1920px] mx-auto">
+        <main className="p-4 md:p-6">
+          {/* 面包屑导航 */}
+          <Breadcrumb
+            items={[
+              { label: '分类', href: '/' },
+              { label: category.name },
+            ]}
+          />
+          
+          {/* 分类标题 */}
+          <div className="mb-6">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-4xl">{category.icon}</span>
+              <h1 className="text-3xl font-bold text-gray-900">{category.name}</h1>
+            </div>
+            {category.description && (
+              <p className="text-gray-600">{category.description}</p>
+            )}
+            <p className="text-sm text-gray-500 mt-2">共 {prompts.length} 个提示词</p>
+          </div>
+          
+          {/* 提示词列表 - 自适应网格 */}
+          {promptsWithCategoryName.length > 0 ? (
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
+              {promptsWithCategoryName.map((prompt) => (
+                <PromptCard key={prompt.id} prompt={prompt} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="该分类暂无提示词"
+              description="快来提交第一个提示词吧！"
+              action={{ label: '提交提示词', href: '/submit' }}
+            />
+          )}
+        </main>
       </div>
-      
-      {/* 提示词列表 */}
-      {promptsWithCategoryName.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {promptsWithCategoryName.map((prompt) => (
-            <PromptCard key={prompt.id} prompt={prompt} />
-          ))}
-        </div>
-      ) : (
-        <EmptyState
-          title="该分类暂无提示词"
-          description="快来提交第一个提示词吧！"
-          action={{ label: '提交提示词', href: '/submit' }}
-        />
-      )}
-    </div>
+    </>
   );
 }
 
