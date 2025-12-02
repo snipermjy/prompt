@@ -353,7 +353,8 @@ export async function upsertCategoryTranslation(
 
   if (error) {
     // 如果是唯一键冲突（记录已存在），尝试返回已有记录，避免大量无害的 duplicate key 报错
-    if ((error as any).code === '23505') {
+    const supabaseError = error as { code?: string; message: string };
+    if (supabaseError.code === '23505') {
       try {
         const { data: existing, error: fetchError } = await supabase
           .from('category_translations')
