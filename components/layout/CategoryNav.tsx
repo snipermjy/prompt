@@ -56,7 +56,7 @@ export default function CategoryNavV2({ categories, totalCount, locale }: Catego
   translatedCategories.forEach(cat => {
     // 只添加有提示词的分类
     if (cat.prompt_count && cat.prompt_count > 0) {
-      const parent = cat.parent_category || (currentLocale === 'en' ? 'Other' : '其他');
+      const parent = cat.parent_category || '其他';
       
       if (!categoryTree[parent]) {
         categoryTree[parent] = [];

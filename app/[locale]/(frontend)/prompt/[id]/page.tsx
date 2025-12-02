@@ -1,6 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getRelatedPrompts } from '@/app/actions/prompts';
-import { getPromptWithTranslation, getCategoryWithTranslation } from '@/app/actions/translations';
+import { getPromptWithTranslation, getCategoryWithTranslation, getPromptsWithTranslation } from '@/app/actions/translations';
 import { getTranslations } from 'next-intl/server';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import PromptCard from '@/components/features/PromptCard';
@@ -72,9 +71,16 @@ export default async function PromptDetailPage({ params }: PageProps) {
   const category = await getCategoryWithTranslation(prompt.category, locale as 'zh' | 'en');
   const categoryName = category?.name || prompt.category;
   
-  // 获取相关推荐
-  const relatedPrompts = await getRelatedPrompts(id, prompt.category, 4);
-  
+  // 获取相关推荐（带翻译）
+  const relatedAll = await getPromptsWithTranslation(locale as 'zh' | 'en', {
+    category: prompt.category,
+    status: 'published',
+    limit: 8,
+  });
+
+  // 过滤掉当前提示词本身，并限制数量
+  const relatedPrompts = relatedAll.filter(p => p.id !== prompt.id).slice(0, 4);
+
   // 为相关推荐添加分类名称
   const relatedPromptsWithCategoryName = relatedPrompts.map(p => ({
     ...p,

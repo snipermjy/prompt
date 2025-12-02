@@ -14,6 +14,7 @@ interface LoadMoreProps {
   pageSize?: number;
   categoryMap?: Map<string, string>; // 分类slug到名称的映射
   locale?: Locale; // 语言
+  sortBy?: 'latest' | 'popular' | 'mostShared'; // 排序方式
 }
 
 /**
@@ -25,7 +26,8 @@ export default function LoadMore({
   category, 
   pageSize = 20,
   categoryMap,
-  locale
+  locale,
+  sortBy = 'latest'
 }: LoadMoreProps) {
   const params = useParams();
   const currentLocale = locale || (params.locale as Locale) || 'zh';
@@ -47,6 +49,7 @@ export default function LoadMore({
         limit: pageSize,
         offset,
         status: 'published',
+        sortBy,
       });
       
       if (newPrompts.length < pageSize) {

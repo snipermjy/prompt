@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { getPromptsWithTranslation, getCategoriesWithTranslation } from '@/app/actions/translations';
 import { getCategoriesWithCount } from '@/app/actions/categories';
 import LoadMore from '@/components/features/LoadMore';
@@ -15,8 +16,13 @@ import type { Locale } from '@/lib/types/database';
 // 动态渲染，实时更新
 export const dynamic = 'force-dynamic';
 
+type SortBy = 'latest' | 'popular' | 'mostShared';
+
 interface PageProps {
   params: Promise<{ locale: Locale }>;
+  searchParams?: Promise<{
+    sort?: string;
+  }>;
 }
 
 export async function generateMetadata({ params }: PageProps) {
@@ -29,8 +35,11 @@ export async function generateMetadata({ params }: PageProps) {
   };
 }
 
-export default async function HomePage({ params }: PageProps) {
+export default async function HomePage({ params, searchParams }: PageProps) {
   const { locale } = await params;
+  const search = searchParams ? await searchParams : {};
+  const sortParam = (search as { sort?: string }).sort;
+  const sortBy: SortBy = sortParam === 'popular' || sortParam === 'mostShared' ? sortParam : 'latest';
   const tCategory = await getTranslations({ locale, namespace: 'category' });
   const tSubmit = await getTranslations({ locale, namespace: 'submit' });
   const tCommon = await getTranslations({ locale, namespace: 'common' });
@@ -42,7 +51,7 @@ export default async function HomePage({ params }: PageProps) {
   try {
     [categoriesWithCount, prompts] = await Promise.all([
       getCategoriesWithCount(),
-      getPromptsWithTranslation(locale, { status: 'published', limit: 20 }),
+      getPromptsWithTranslation(locale, { status: 'published', limit: 20, sortBy }),
     ]);
     
     // 只显示有提示词的分类
@@ -96,21 +105,48 @@ export default async function HomePage({ params }: PageProps) {
           
           {/* 排序按钮 */}
           <div className="flex items-center gap-2">
-            <button className="px-3 md:px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg shadow-sm">
+            <Link
+              href={`/${locale}?sort=latest`}
+              className={`px-3 md:px-4 py-2 text-sm font-medium rounded-lg shadow-sm transition-colors ${
+                sortBy === 'latest'
+                  ? 'text-white bg-blue-600'
+                  : 'text-gray-600 bg-white hover:bg-gray-100'
+              }`}
+            >
               {tCategory('latest')}
-            </button>
-            <button className="px-3 md:px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+            </Link>
+            <Link
+              href={`/${locale}?sort=popular`}
+              className={`px-3 md:px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                sortBy === 'popular'
+                  ? 'text-white bg-blue-600 shadow-sm'
+                  : 'text-gray-600 bg-white hover:bg-gray-100'
+              }`}
+            >
               {tCategory('popular')}
-            </button>
-            <button className="hidden sm:block px-3 md:px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+            </Link>
+            <Link
+              href={`/${locale}?sort=mostShared`}
+              className={`hidden sm:block px-3 md:px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                sortBy === 'mostShared'
+                  ? 'text-white bg-blue-600 shadow-sm'
+                  : 'text-gray-600 bg-white hover:bg-gray-100'
+              }`}
+            >
               {tCategory('mostSaved')}
-            </button>
+            </Link>
           </div>
         </div>
 
         {/* 提示词列表 - 带加载更多功能 */}
         {promptsWithCategoryName.length > 0 ? (
-          <LoadMore initialPrompts={promptsWithCategoryName} categoryMap={categoryMap} locale={locale} />
+          <LoadMore
+            key={sortBy}
+            initialPrompts={promptsWithCategoryName}
+            categoryMap={categoryMap}
+            locale={locale}
+            sortBy={sortBy}
+          />
         ) : (
           <NoDataState 
             title={tCommon('noData')}

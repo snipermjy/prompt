@@ -5,6 +5,7 @@
 'use server';
 
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { translateCategory } from '@/lib/ai/translate';
 import type {
   PromptTranslation,
   CategoryTranslation,
@@ -144,6 +145,7 @@ export async function getPromptsWithTranslation(
     status?: string;
     limit?: number;
     offset?: number;
+    sortBy?: 'latest' | 'popular' | 'mostShared';
   }
 ): Promise<PromptWithTranslation[]> {
   const supabase = await createClient();
@@ -151,8 +153,25 @@ export async function getPromptsWithTranslation(
   let query = supabase
     .from('prompts')
     .select('*')
-    .eq('status', filters?.status || 'published')
-    .order('created_at', { ascending: false });
+    .eq('status', filters?.status || 'published');
+
+  const sortBy = filters?.sortBy || 'latest';
+
+  if (sortBy === 'popular') {
+    // 最热：按浏览量优先，其次复制量，最后创建时间
+    query = query
+      .order('view_count', { ascending: false })
+      .order('copy_count', { ascending: false })
+      .order('created_at', { ascending: false });
+  } else if (sortBy === 'mostShared') {
+    // 分享最多：按分享量优先，其次创建时间
+    query = query
+      .order('share_count', { ascending: false })
+      .order('created_at', { ascending: false });
+  } else {
+    // 最新：按创建时间倒序
+    query = query.order('created_at', { ascending: false });
+  }
 
   if (filters?.category) {
     query = query.eq('category', filters.category);
@@ -270,8 +289,6 @@ export async function getCategoryWithTranslation(
   // 如果还没有翻译，自动触发一次 AI 翻译并保存，保证英文页面也能看到英文分类名
   if (!translation) {
     try {
-      const { translateCategory } = await import('@/lib/ai/translate');
-
       const aiResult = await translateCategory(category.name, category.description || '', 'en');
 
       const saved = await upsertCategoryTranslation({
@@ -317,19 +334,46 @@ export async function upsertCategoryTranslation(
 
   const { data, error } = await supabase
     .from('category_translations')
-    .upsert({
-      category_id: input.category_id,
-      locale: input.locale,
-      name: input.name,
-      description: input.description,
-      translation_status: input.translation_status || 'pending',
-      translated_by: input.translated_by || 'ai',
-      translated_at: new Date().toISOString(),
-    })
+    .upsert(
+      {
+        category_id: input.category_id,
+        locale: input.locale,
+        name: input.name,
+        description: input.description,
+        translation_status: input.translation_status || 'pending',
+        translated_by: input.translated_by || 'ai',
+        translated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: 'category_id,locale',
+      }
+    )
     .select()
     .single();
 
   if (error) {
+    // 如果是唯一键冲突（记录已存在），尝试返回已有记录，避免大量无害的 duplicate key 报错
+    if ((error as any).code === '23505') {
+      try {
+        const { data: existing, error: fetchError } = await supabase
+          .from('category_translations')
+          .select('*')
+          .eq('category_id', input.category_id)
+          .eq('locale', input.locale)
+          .single();
+
+        if (fetchError || !existing) {
+          console.error('获取已存在的分类翻译失败:', fetchError || error);
+          return { success: false, error: error.message };
+        }
+
+        return { success: true, data: existing };
+      } catch (fetchError) {
+        console.error('处理分类翻译唯一键冲突失败:', fetchError);
+        return { success: false, error: error.message };
+      }
+    }
+
     console.error('创建/更新分类翻译失败:', error);
     return { success: false, error: error.message };
   }
@@ -369,6 +413,39 @@ export async function getCategoriesWithTranslation(
   const translationMap = new Map(
     (translations || []).map(t => [t.category_id, t])
   );
+  // 如果是英文页面，为没有翻译记录的分类自动生成英文翻译（一次性）
+  const categoriesToTranslate = categories.filter(c => !translationMap.has(c.id));
+
+  if (categoriesToTranslate.length > 0) {
+    try {
+      await Promise.all(
+        categoriesToTranslate.map(async (category) => {
+          try {
+            const aiResult = await translateCategory(category.name, category.description || '', 'en');
+
+            const saved = await upsertCategoryTranslation({
+              category_id: category.id,
+              locale: 'en',
+              name: aiResult.name,
+              description: aiResult.description,
+              translation_status: 'ai_translated',
+              translated_by: 'ai',
+            });
+
+            if (saved.success && saved.data) {
+              translationMap.set(category.id, saved.data);
+            } else {
+              console.error('自动翻译分类失败（保存失败）:', saved.error);
+            }
+          } catch (error) {
+            console.error('自动翻译分类失败:', category.id, error);
+          }
+        })
+      );
+    } catch (error) {
+      console.error('批量自动翻译分类失败:', error);
+    }
+  }
 
   return categories.map(category => {
     const translation = translationMap.get(category.id);
