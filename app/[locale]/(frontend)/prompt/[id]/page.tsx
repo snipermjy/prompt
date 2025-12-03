@@ -30,6 +30,8 @@ export async function generateMetadata({ params }: PageProps) {
   const prompt = await getPromptWithTranslation(id, locale as 'zh' | 'en');
   const tSite = await getTranslations({ locale, namespace: 'site' });
   const siteName = tSite('name');
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://promtp.mom';
+  const basePath = `/prompt/${id}`;
   
   if (!prompt) {
     return {
@@ -50,6 +52,13 @@ export async function generateMetadata({ params }: PageProps) {
       card: 'summary',
       title: `${prompt.title} - ${siteName}`,
       description: prompt.description || prompt.title,
+    },
+    alternates: {
+      canonical: `${siteUrl}/${locale}${basePath}`,
+      languages: {
+        zh: `${siteUrl}/zh${basePath}`,
+        en: `${siteUrl}/en${basePath}`,
+      },
     },
   };
 }
@@ -91,15 +100,15 @@ export default async function PromptDetailPage({ params }: PageProps) {
   const displayLanguage = locale === 'en' && prompt._translation_status ? 'en-US' : prompt.language;
   const language = languageConfig[displayLanguage] || languageConfig[prompt.language];
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://promtp.mom';
-  const promptUrl = `${siteUrl}/prompt/${id}`;
+  const promptUrl = `${siteUrl}/${locale}/prompt/${id}`;
   
   return (
     <>
       <ArticleJsonLd prompt={prompt} url={promptUrl} />
       <BreadcrumbJsonLd
         items={[
-          { name: t('home'), url: siteUrl },
-          { name: categoryName, url: `${siteUrl}/category/${prompt.category}` },
+          { name: t('home'), url: `${siteUrl}/${locale}` },
+          { name: categoryName, url: `${siteUrl}/${locale}/category/${prompt.category}` },
           { name: prompt.title, url: promptUrl },
         ]}
       />
@@ -109,7 +118,7 @@ export default async function PromptDetailPage({ params }: PageProps) {
         {/* 面包屑导航 */}
         <Breadcrumb
           items={[
-            { label: categoryName, href: `/category/${prompt.category}` },
+            { label: categoryName, href: `/${locale}/category/${prompt.category}` },
             { label: prompt.title },
           ]}
         />

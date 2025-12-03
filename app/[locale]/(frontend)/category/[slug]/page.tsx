@@ -33,6 +33,8 @@ export async function generateMetadata({ params }: PageProps) {
   const { slug, locale } = await params;
   const category = await getCategoryWithTranslation(slug, locale);
   const t = await getTranslations({ locale, namespace: 'site' });
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://promtp.mom';
+  const basePath = `/category/${slug}`;
   
   if (!category) {
     return {
@@ -46,6 +48,13 @@ export async function generateMetadata({ params }: PageProps) {
     openGraph: {
       title: `${category.name} - ${t('name')}`,
       description: category.description || `Browse all AI prompts in ${category.name} category`,
+    },
+    alternates: {
+      canonical: `${siteUrl}/${locale}${basePath}`,
+      languages: {
+        zh: `${siteUrl}/zh${basePath}`,
+        en: `${siteUrl}/en${basePath}`,
+      },
     },
   };
 }

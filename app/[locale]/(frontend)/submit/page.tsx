@@ -10,6 +10,8 @@ export async function generateMetadata({ params: { locale } }: { params: { local
   const t = await getTranslations({ locale, namespace: 'submit' });
   const tSite = await getTranslations({ locale, namespace: 'site' });
   const siteName = tSite('name');
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://promtp.mom';
+  const basePath = '/submit';
   
   return {
     title: `${t('title')} - ${siteName}`,
@@ -17,6 +19,13 @@ export async function generateMetadata({ params: { locale } }: { params: { local
     openGraph: {
       title: `${t('title')} - ${siteName}`,
       description: t('description'),
+    },
+    alternates: {
+      canonical: `${siteUrl}/${locale}${basePath}`,
+      languages: {
+        zh: `${siteUrl}/zh${basePath}`,
+        en: `${siteUrl}/en${basePath}`,
+      },
     },
   };
 }

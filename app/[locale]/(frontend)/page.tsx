@@ -28,10 +28,19 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps) {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'site' });
-  
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://promtp.mom';
+  const basePath = '';
+
   return {
     title: t('name'),
     description: t('description'),
+    alternates: {
+      canonical: `${siteUrl}/${locale}${basePath}`,
+      languages: {
+        zh: `${siteUrl}/zh${basePath}`,
+        en: `${siteUrl}/en${basePath}`,
+      },
+    },
   };
 }
 
@@ -86,7 +95,7 @@ export default async function HomePage({ params, searchParams }: PageProps) {
 
   return (
     <>
-      <WebsiteJsonLd url={siteUrl} />
+      <WebsiteJsonLd url={`${siteUrl}/${locale}`} />
       
       {/* 顶部分类导航 */}
       <CategoryNav categories={categories} totalCount={prompts.length} locale={locale} />
