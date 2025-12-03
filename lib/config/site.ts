@@ -5,7 +5,7 @@
 export const siteConfig = {
   name: 'AI提示词库',
   description: '收录各类优质AI提示词，涵盖ChatGPT、Claude、Midjourney等主流AI工具',
-  url: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+  url: process.env.NEXT_PUBLIC_SITE_URL || 'https://promtp.mom',
   
   // 导航菜单
   navItems: [

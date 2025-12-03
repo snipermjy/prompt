@@ -11,7 +11,7 @@ export const revalidate = 3600; // 每小时重新生成一次
  * 包含所有提示词和分类页面
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://promtp.mom';
   
   // 获取所有提示词和分类（使用静态客户端，不依赖 cookies）
   const [prompts, categories] = await Promise.all([

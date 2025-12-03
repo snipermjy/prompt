@@ -82,7 +82,7 @@ export default async function HomePage({ params, searchParams }: PageProps) {
     categoryName: categoryMap.get(prompt.category) || prompt.category,
   }));
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://promtp.mom';
 
   return (
     <>

@@ -90,7 +90,7 @@ export default async function PromptDetailPage({ params }: PageProps) {
   // 如果是英文页面且有翻译，显示英语；否则显示原始语言
   const displayLanguage = locale === 'en' && prompt._translation_status ? 'en-US' : prompt.language;
   const language = languageConfig[displayLanguage] || languageConfig[prompt.language];
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://promtp.mom';
   const promptUrl = `${siteUrl}/prompt/${id}`;
   
   return (

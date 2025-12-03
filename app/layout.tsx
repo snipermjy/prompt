@@ -8,7 +8,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://promtp.mom';
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_ID || 'G-S151CYK0PM';
 
 export const metadata: Metadata = {
