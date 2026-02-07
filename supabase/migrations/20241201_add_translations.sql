@@ -15,6 +15,9 @@ CREATE TABLE IF NOT EXISTS prompt_translations (
   title TEXT NOT NULL,
   description TEXT,
   content TEXT NOT NULL,
+  tags TEXT[],
+  use_cases TEXT[],
+  prompt_type TEXT[],
   
   -- 翻译元数据
   translation_status VARCHAR(20) DEFAULT 'pending' CHECK (
@@ -154,6 +157,9 @@ COMMENT ON TABLE category_translations IS '分类多语言翻译表';
 
 COMMENT ON COLUMN prompt_translations.translation_status IS '翻译状态: pending(待翻译), ai_translated(AI已翻译), reviewed(已审核), published(已发布)';
 COMMENT ON COLUMN prompt_translations.translated_by IS '翻译者: ai 或用户ID';
+COMMENT ON COLUMN prompt_translations.tags IS '翻译后的标签数组';
+COMMENT ON COLUMN prompt_translations.use_cases IS '翻译后的使用场景数组';
+COMMENT ON COLUMN prompt_translations.prompt_type IS '翻译后的提示词类型数组';
 
 COMMENT ON COLUMN category_translations.translation_status IS '翻译状态: pending(待翻译), ai_translated(AI已翻译), reviewed(已审核), published(已发布)';
 COMMENT ON COLUMN category_translations.translated_by IS '翻译者: ai 或用户ID';

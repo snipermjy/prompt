@@ -54,8 +54,10 @@ export default function SearchWithHistory({
     if (onSearch) {
       onSearch(sanitized);
     } else {
+      // 获取当前 locale
+      const locale = window.location.pathname.split('/')[1] || 'zh';
       // 使用时间戳确保每次都是新的 URL，强制刷新
-      router.push(`/search?q=${encodeURIComponent(sanitized)}&t=${Date.now()}`);
+      router.push(`/${locale}/search?q=${encodeURIComponent(sanitized)}&t=${Date.now()}`);
     }
   }, [addSearchTerm, onSearch, router]);
 

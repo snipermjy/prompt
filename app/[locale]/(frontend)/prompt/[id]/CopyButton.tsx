@@ -29,11 +29,11 @@ export default function CopyButton({ content, promptId }: CopyButtonProps) {
       // 增加复制量（异步执行，不阻塞用户体验）
       incrementCopyCount(promptId).then(result => {
         if (!result.success) {
-          console.error('Failed to increment copy count:', result.error);
-        } else {
-          console.log('Copy count incremented successfully');
+          // 静默失败
         }
-      }).catch(err => console.error('Failed to increment copy count:', err));
+      }).catch(() => {
+        // 静默失败
+      });
       
       // 2秒后恢复按钮状态
       setTimeout(() => {

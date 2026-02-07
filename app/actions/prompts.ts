@@ -248,8 +248,32 @@ export async function createPrompt(
       content: formatPromptContent(input.content),
     };
     
-    console.log('Creating prompt with data:', JSON.stringify(formattedInput, null, 2));
     const supabase = createAdminClient();
+    
+    // 检查分类是否存在
+    const { data: existingCategory } = await supabase
+      .from('categories')
+      .select('slug')
+      .eq('slug', formattedInput.category)
+      .single();
+    
+    if (!existingCategory) {
+      console.warn(`⚠️ 分类 ${formattedInput.category} 不存在，将使用默认分类 "ai-agent"`);
+      // 分类不存在，使用默认的"AI智能体"分类作为兜底
+      formattedInput.category = 'ai-agent';
+      
+      // 发送通知给管理员
+      const { notifyAdmin } = await import('@/lib/utils/adminNotification');
+      await notifyAdmin({
+        type: 'system_info',
+        message: `提示词"${formattedInput.title}"使用了不存在的分类，已自动归入"AI智能体"`,
+        data: {
+          promptTitle: formattedInput.title,
+          originalCategory: input.category,
+          fallbackCategory: 'ai-agent',
+        }
+      });
+    }
     
     const { data, error } = await supabase
       .from('prompts')
@@ -263,48 +287,42 @@ export async function createPrompt(
       throw new Error(`Failed to create prompt: ${error.message}`);
     }
     
-    console.log('Prompt created successfully:', data);
-    
-    // 如果有预翻译结果，直接使用；否则同步翻译
-    try {
-      const { upsertPromptTranslation } = await import('@/app/actions/translations');
-      
-      let translation;
-      if (preTranslation) {
-        console.log('使用预翻译结果:', data.id);
-        translation = preTranslation;
-      } else {
-        const { translateToEnglish } = await import('@/lib/ai/translate');
-        console.log('开始翻译提示词:', data.id);
-        translation = await translateToEnglish(
-          formattedInput.title || '',
-          formattedInput.description || '',
-          formattedInput.content,
-          formattedInput.tags || [],
-          formattedInput.use_cases || [],
-          formattedInput.prompt_type || []
-        );
-        console.log('翻译结果:', translation);
+    // 如果有预翻译结果，直接使用；否则异步翻译（不阻塞）
+    Promise.resolve().then(async () => {
+      try {
+        const { upsertPromptTranslation } = await import('@/app/actions/translations');
+        
+        let translation;
+        if (preTranslation) {
+          translation = preTranslation;
+        } else {
+          const { translateToEnglish } = await import('@/lib/ai/translate');
+          translation = await translateToEnglish(
+            formattedInput.title || '',
+            formattedInput.description || '',
+            formattedInput.content,
+            formattedInput.tags || [],
+            formattedInput.use_cases || [],
+            formattedInput.prompt_type || []
+          );
+        }
+        
+        await upsertPromptTranslation({
+          prompt_id: data.id,
+          locale: 'en',
+          title: translation.title,
+          description: translation.description,
+          content: translation.content,
+          tags: translation.tags || formattedInput.tags,
+          use_cases: translation.use_cases || formattedInput.use_cases,
+          prompt_type: translation.prompt_type || formattedInput.prompt_type,
+          translation_status: 'ai_translated',
+          translated_by: 'ai',
+        });
+      } catch (translationError) {
+        console.error('翻译失败:', data.id, translationError);
       }
-      
-      await upsertPromptTranslation({
-        prompt_id: data.id,
-        locale: 'en',
-        title: translation.title,
-        description: translation.description,
-        content: translation.content,
-        tags: translation.tags || formattedInput.tags,
-        use_cases: translation.use_cases || formattedInput.use_cases,
-        prompt_type: translation.prompt_type || formattedInput.prompt_type,
-        translation_status: 'ai_translated',
-        translated_by: 'ai',
-      });
-      
-      console.log('提示词翻译成功:', data.id);
-    } catch (translationError) {
-      console.error('翻译失败:', data.id, translationError);
-      // 翻译失败不影响提示词创建
-    }
+    });
     
     return data as Prompt;
   } catch (error) {

@@ -109,7 +109,7 @@ export async function getCategoryTree(): Promise<Map<string, Category[]>> {
 }
 
 /**
- * 获取分类及其提示词数量
+ * 获取分类及其提示词数量（优化版 - 减少查询次数）
  * 
  * @returns 分类数组（包含提示词数量）
  */
@@ -128,23 +128,31 @@ export async function getCategoriesWithCount(): Promise<(Category & { prompt_cou
       return [];
     }
     
-    // 为每个分类获取提示词数量
-    const categoriesWithCount = await Promise.all(
-      (categories || []).map(async (category) => {
-        const { count } = await supabase
-          .from('prompts')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'published')
-          .eq('category', category.slug);
-        
-        return {
-          ...category,
-          prompt_count: count || 0,
-        };
-      })
-    );
+    if (!categories || categories.length === 0) {
+      return [];
+    }
     
-    return categoriesWithCount as (Category & { prompt_count: number })[];
+    // 获取所有分类的 slug
+    const categorySlugs = categories.map(c => c.slug);
+    
+    // 一次性查询所有分类的提示词数量
+    const { data: promptCounts } = await supabase
+      .from('prompts')
+      .select('category')
+      .eq('status', 'published')
+      .in('category', categorySlugs);
+    
+    // 统计每个分类的提示词数量
+    const countMap = new Map<string, number>();
+    (promptCounts || []).forEach(p => {
+      countMap.set(p.category, (countMap.get(p.category) || 0) + 1);
+    });
+    
+    // 合并数据
+    return categories.map(category => ({
+      ...category,
+      prompt_count: countMap.get(category.slug) || 0,
+    })) as (Category & { prompt_count: number })[];
   } catch (error) {
     console.error('Error in getCategoriesWithCount:', error);
     return [];
@@ -177,8 +185,6 @@ export async function createCategory(
     const conflictResult = await detectCategoryConflict(name);
     
     if (conflictResult.hasConflict) {
-      console.warn('⚠️ 分类冲突检测:', conflictResult.suggestion);
-      
       // 发送通知到管理后台
       const { notifyAdmin } = await import('@/lib/utils/adminNotification');
       await notifyAdmin({
@@ -193,7 +199,6 @@ export async function createCategory(
       
       // 如果相似度非常高（>95%），直接使用现有分类
       if (conflictResult.similarCategories[0]?.similarity > 0.95) {
-        console.log(`使用现有分类: ${conflictResult.similarCategories[0].name}`);
         const { data: existingCategory } = await supabase
           .from('categories')
           .select('*')
@@ -211,7 +216,6 @@ export async function createCategory(
       .single();
     
     if (existing) {
-      console.log(`Category with slug "${slug}" already exists`);
       return null;
     }
     
@@ -224,6 +228,13 @@ export async function createCategory(
       .single();
     
     const displayOrder = (maxOrder?.display_order || 0) + 1;
+    
+    // 3.5. 验证parent_category是否有效
+    const validParentCategories = ['内容创作', '技术开发', '商业运营', '效率工具', 'AI应用'];
+    if (parentCategory && !validParentCategories.includes(parentCategory)) {
+      console.warn(`Invalid parent_category: ${parentCategory}, setting to null`);
+      parentCategory = undefined;
+    }
     
     // 4. 创建新分类
     const { data, error } = await supabase
@@ -245,41 +256,44 @@ export async function createCategory(
       throw new Error(`Failed to create category: ${error.message}`);
     }
     
-    // 5. 同步翻译为英文（等待翻译完成）
-    try {
-      const { translateCategory } = await import('@/lib/ai/translate');
-      const { upsertCategoryTranslation } = await import('@/app/actions/translations');
-      
-      console.log('开始翻译分类:', data.id, name);
-      const translation = await translateCategory(name, description || '', 'en');
-      
-      await upsertCategoryTranslation({
-        category_id: data.id,
-        locale: 'en',
-        name: translation.name,
-        description: translation.description,
-        translation_status: 'ai_translated',
-        translated_by: 'ai',
-      });
-      
-      console.log('分类翻译成功:', data.id);
-    } catch (translationError) {
-      console.error('翻译失败:', data.id, translationError);
-    }
+    // 5. 同步翻译为英文（不等待翻译完成，避免阻塞）
+    // 使用异步方式，不影响分类创建的响应速度
+    Promise.resolve().then(async () => {
+      try {
+        const { translateCategory } = await import('@/lib/ai/translate');
+        const { upsertCategoryTranslation } = await import('@/app/actions/translations');
+        
+        const translation = await translateCategory(name, description || '', 'en');
+        
+        await upsertCategoryTranslation({
+          category_id: data.id,
+          locale: 'en',
+          name: translation.name,
+          description: translation.description,
+          translation_status: 'ai_translated',
+          translated_by: 'ai',
+        });
+      } catch (translationError) {
+        console.error('翻译失败:', data.id, translationError);
+      }
+    });
     
-    // 6. 发送新分类创建通知
+    // 6. 发送新分类创建通知（包含AI判断理由）
     const { notifyAdmin } = await import('@/lib/utils/adminNotification');
     await notifyAdmin({
       type: 'new_category',
       message: `AI创建了新分类"${name}"${parentCategory ? `（属于${parentCategory}）` : ''}`,
       data: {
+        categoryId: data.id,
         categoryName: name,
         categorySlug: slug,
-        parentCategory: parentCategory
+        parentCategory: parentCategory,
+        description: description,
+        reason: '现有17个分类无法准确覆盖该提示词的应用场景',
+        // 可以在这里添加更多上下文信息
       }
     });
     
-    console.log(`✅ Created new category: ${name} (${slug})`);
     return data as Category;
   } catch (error) {
     console.error('Error in createCategory:', error);

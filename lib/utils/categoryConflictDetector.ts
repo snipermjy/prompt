@@ -63,12 +63,12 @@ export interface ConflictDetectionResult {
  * 检测分类名称冲突
  * 
  * @param newCategoryName - 新分类名称
- * @param threshold - 相似度阈值（默认0.8，即80%）
+ * @param threshold - 相似度阈值（默认0.7，即70%，适合中文）
  * @returns 冲突检测结果
  */
 export async function detectCategoryConflict(
   newCategoryName: string,
-  threshold: number = 0.8
+  threshold: number = 0.7
 ): Promise<ConflictDetectionResult> {
   try {
     // 获取所有现有分类

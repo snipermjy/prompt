@@ -54,11 +54,11 @@ export default function ShareButton({ promptId, title }: ShareButtonProps) {
   const trackShare = () => {
     incrementShareCount(promptId).then(result => {
       if (!result.success) {
-        console.error('Failed to increment share count:', result.error);
-      } else {
-        console.log('Share count incremented successfully');
+        // 静默失败
       }
-    }).catch(err => console.error('Failed to increment share count:', err));
+    }).catch(() => {
+      // 静默失败
+    });
   };
 
   // 移动端：使用原生分享

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import SearchWithHistory from '@/components/ui/SearchWithHistory';
 import LanguageSwitcher from './LanguageSwitcher';
@@ -14,6 +14,7 @@ import type { Locale } from '@/i18n/config';
 
 export default function Header() {
   const params = useParams();
+  const router = useRouter();
   const locale = (params.locale as Locale) || 'zh';
   const t = useTranslations('site');
   const tNav = useTranslations('nav');
@@ -48,7 +49,7 @@ export default function Header() {
 
             {/* 移动端搜索图标 */}
             <button
-              onClick={() => window.location.href = `/${locale}/search`}
+              onClick={() => router.push(`/${locale}/search`)}
               className="sm:hidden p-2 hover:bg-gray-100 rounded-lg"
               aria-label={tCommon('search')}
             >

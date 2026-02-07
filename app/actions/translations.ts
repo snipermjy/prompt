@@ -181,7 +181,7 @@ export async function getPromptsWithTranslation(
     query = query.limit(filters.limit);
   }
 
-  if (filters?.offset) {
+  if (filters?.offset !== undefined) {
     query = query.range(filters.offset, filters.offset + (filters.limit || 20) - 1);
   }
 
@@ -284,33 +284,9 @@ export async function getCategoryWithTranslation(
   }
 
   // 英文页面：按分类 id 获取英文翻译
-  let translation = await getCategoryTranslation(category.id, 'en');
+  const translation = await getCategoryTranslation(category.id, 'en');
 
-  // 如果还没有翻译，自动触发一次 AI 翻译并保存，保证英文页面也能看到英文分类名
-  if (!translation) {
-    try {
-      const aiResult = await translateCategory(category.name, category.description || '', 'en');
-
-      const saved = await upsertCategoryTranslation({
-        category_id: category.id,
-        locale: 'en',
-        name: aiResult.name,
-        description: aiResult.description,
-        translation_status: 'ai_translated',
-        translated_by: 'ai',
-      });
-
-      if (saved.success && saved.data) {
-        translation = saved.data;
-      } else {
-        console.error('自动翻译分类失败（保存失败）:', saved.error);
-      }
-    } catch (error) {
-      console.error('自动翻译分类失败:', error);
-    }
-  }
-
-  // 如果仍然没有翻译，就退回中文名称，但标记为英文 pending（极端兜底）
+  // 如果没有翻译，返回中文名称作为降级方案
   if (!translation) {
     return { ...category, _locale: 'en', _translation_status: 'pending' };
   }
@@ -414,39 +390,6 @@ export async function getCategoriesWithTranslation(
   const translationMap = new Map(
     (translations || []).map(t => [t.category_id, t])
   );
-  // 如果是英文页面，为没有翻译记录的分类自动生成英文翻译（一次性）
-  const categoriesToTranslate = categories.filter(c => !translationMap.has(c.id));
-
-  if (categoriesToTranslate.length > 0) {
-    try {
-      await Promise.all(
-        categoriesToTranslate.map(async (category) => {
-          try {
-            const aiResult = await translateCategory(category.name, category.description || '', 'en');
-
-            const saved = await upsertCategoryTranslation({
-              category_id: category.id,
-              locale: 'en',
-              name: aiResult.name,
-              description: aiResult.description,
-              translation_status: 'ai_translated',
-              translated_by: 'ai',
-            });
-
-            if (saved.success && saved.data) {
-              translationMap.set(category.id, saved.data);
-            } else {
-              console.error('自动翻译分类失败（保存失败）:', saved.error);
-            }
-          } catch (error) {
-            console.error('自动翻译分类失败:', category.id, error);
-          }
-        })
-      );
-    } catch (error) {
-      console.error('批量自动翻译分类失败:', error);
-    }
-  }
 
   return categories.map(category => {
     const translation = translationMap.get(category.id);

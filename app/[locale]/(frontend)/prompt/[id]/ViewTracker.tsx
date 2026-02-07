@@ -23,13 +23,11 @@ export default function ViewTracker({ promptId }: ViewTrackerProps) {
     // 增加浏览量
     incrementViewCount(promptId).then(result => {
       if (!result.success) {
-        console.error('Failed to increment view count:', result.error);
-      } else {
-        console.log('View count incremented successfully');
+        // 静默失败
       }
-    }).catch(err => 
-      console.error('Failed to increment view count:', err)
-    );
+    }).catch(() => {
+      // 静默失败
+    });
   }, [promptId]);
 
   // 不渲染任何内容

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useParams } from 'next/navigation';
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import type { Locale } from '@/i18n/config';
 
@@ -49,29 +49,33 @@ export default function CategoryNavV2({ categories, totalCount, locale }: Catego
   // Categories are already translated from database, use them directly
   const translatedCategories = categories;
   
-  // 构建分类树（只包含有提示词的分类）
-  const categoryTree: CategoryTree = {};
-  const parentCategories = new Set<string>();
-  
-  translatedCategories.forEach(cat => {
-    // 只添加有提示词的分类
-    if (cat.prompt_count && cat.prompt_count > 0) {
-      const parent = cat.parent_category || '其他';
-      
-      if (!categoryTree[parent]) {
-        categoryTree[parent] = [];
+  // 使用 useMemo 优化分类树构建
+  const { categoryTree, sortedParents } = useMemo(() => {
+    const tree: CategoryTree = {};
+    const parentCategories = new Set<string>();
+    
+    translatedCategories.forEach(cat => {
+      // 只添加有提示词的分类
+      if (cat.prompt_count && cat.prompt_count > 0) {
+        const parent = cat.parent_category || '其他';
+        
+        if (!tree[parent]) {
+          tree[parent] = [];
+        }
+        tree[parent].push(cat);
+        parentCategories.add(parent);
       }
-      categoryTree[parent].push(cat);
-      parentCategories.add(parent);
-    }
-  });
-  
-  // Get all parent categories that have prompts
-  const parentOrder = Array.from(parentCategories).sort();
-  
-  const sortedParents = parentOrder.filter(p => 
-    parentCategories.has(p) && categoryTree[p] && categoryTree[p].length > 0
-  );
+    });
+    
+    // Get all parent categories that have prompts
+    const parentOrder = Array.from(parentCategories).sort();
+    
+    const sorted = parentOrder.filter(p => 
+      parentCategories.has(p) && tree[p] && tree[p].length > 0
+    );
+    
+    return { categoryTree: tree, sortedParents: sorted };
+  }, [translatedCategories]);
   
   // Default icon for all parent categories
   const getParentIcon = (parent: string) => {

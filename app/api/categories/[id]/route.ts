@@ -9,10 +9,10 @@ import { createAdminClient } from '@/lib/supabase/server';
 // 更新分类
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     const { name, slug, description, icon } = body;
 
@@ -62,33 +62,8 @@ export async function PATCH(
       );
     }
 
-    // 🌐 自动生成英文翻译
-    try {
-      console.log('🤖 开始生成分类英文翻译...');
-      const translateResponse = await fetch(`${request.nextUrl.origin}/api/translate/category`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          categoryId: id,
-          name: name,
-          description: description || undefined,
-          targetLocale: 'en',
-        }),
-      });
-
-      const translateResult = await translateResponse.json();
-      
-      if (translateResult.success) {
-        console.log('✅ 分类英文翻译生成成功！');
-      } else {
-        console.warn('⚠️ 分类英文翻译生成失败:', translateResult.error);
-      }
-    } catch (translateError) {
-      console.error('❌ 翻译过程出错:', translateError);
-      // 翻译失败不影响主流程
-    }
+    // 🌐 不再自动生成翻译，改为手动触发
+    // 翻译失败不影响主流程
 
     return NextResponse.json({
       success: true,
@@ -106,17 +81,31 @@ export async function PATCH(
 // 删除分类
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const supabase = createAdminClient();
 
-    // 检查分类下是否有提示词
+    // 先获取分类的 slug
+    const { data: category } = await supabase
+      .from('categories')
+      .select('slug')
+      .eq('id', id)
+      .single();
+
+    if (!category) {
+      return NextResponse.json(
+        { error: '分类不存在' },
+        { status: 404 }
+      );
+    }
+
+    // 检查分类下是否有提示词（使用 slug）
     const { count } = await supabase
       .from('prompts')
       .select('*', { count: 'exact', head: true })
-      .eq('category', id);
+      .eq('category', category.slug);
 
     if (count && count > 0) {
       return NextResponse.json(
